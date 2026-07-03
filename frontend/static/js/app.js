@@ -87,7 +87,7 @@ function toast(msg, ic = 'check') {
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 2600);
 }
 function confetti() {
-  const colors = ['#2a4a9e', '#b98a2f', '#ddba6b', '#c2452d', '#16294f', '#2e7d64'];
+  const colors = ['#ec4899', '#e0a500', '#3b82f6', '#f5c518', '#a52a63', '#7aa9f7'];
   for (let i = 0; i < 100; i++) {
     const c = document.createElement('div');
     c.className = 'confetti';
@@ -105,12 +105,12 @@ function ring(pct, color, size = 66) {
   const r = size / 2 - 6, c = 2 * Math.PI * r;
   const off = c - (pct / 100) * c;
   return `<svg class="result-ring" viewBox="0 0 ${size} ${size}">
-    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(24,34,56,.1)" stroke-width="6"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(53,31,46,.1)" stroke-width="6"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
       stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"
       transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset 1s var(--ease)"/>
     <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle"
-      font-family="Playfair Display" font-weight="700" font-size="${size/3.6}" fill="#16294f">${pct}%</text>
+      font-family="Playfair Display" font-weight="700" font-size="${size/3.6}" fill="#a52a63">${pct}%</text>
   </svg>`;
 }
 
@@ -226,17 +226,19 @@ async function dashboard() {
       <div class="hero-proverb">「 ${esc(prog.proverb || '')} 」</div>
     </div>
 
-    <div class="tile stat gold col-4">
-      <div class="ico">${icon('flame')}</div>
-      <div>
-        <div class="stat-num">${prog.totalXp}<small> XP</small></div>
-        <div class="stat-label">Түвшин ${prog.level} · дараагийн түвшин хүртэл ${prog.xpNext - prog.xpInto} XP</div>
-      </div>
+    <div class="tile col-4">
+      <div class="tile-eyebrow">${icon('briefcase','lead')}<h3>Obama Room</h3>
+        ${prog.obamaUnread > 0 ? `<span class="nav-badge-dot">${prog.obamaUnread}</span>` : ''}</div>
+      <p style="color:var(--ink-2);font-size:14px">${prog.obamaUnread > 0
+        ? `${prog.obamaUnread} шинэ уншлага/даалгавар хүлээж байна.`
+        : 'Уншлага, даалгавар, тэмдэглэл энд ирнэ.'}</p>
+      <div style="margin-top:14px"><span class="btn btn-gold btn-sm"
+        onclick="location.hash='#/obama'">${icon('inbox')} Нээх</span></div>
     </div>
 
     ${roomTiles}
 
-    <div class="tile col-4 stat ok">
+    <div class="tile col-4 stat verm">
       <div class="ico">${icon('book')}</div>
       <div><div class="stat-num">${prog.lessonsDone}</div>
       <div class="stat-label">Дуусгасан хичээл</div></div>
@@ -262,14 +264,12 @@ async function dashboard() {
         <span class="btn btn-primary btn-sm" onclick="location.hash='#/graph'">${icon('cube')} 3D орчинд судлах</span>
       </div>
     </div>
-    <div class="tile col-4">
-      <div class="tile-eyebrow">${icon('briefcase','lead')}<h3>Obama Room</h3>
-        ${prog.obamaUnread > 0 ? `<span class="nav-badge-dot">${prog.obamaUnread}</span>` : ''}</div>
-      <p style="color:var(--ink-2);font-size:14px">${prog.obamaUnread > 0
-        ? `${prog.obamaUnread} шинэ уншлага/даалгавар хүлээж байна.`
-        : 'Уншлага, даалгавар, тэмдэглэл энд ирнэ.'}</p>
-      <div style="margin-top:14px"><span class="btn btn-gold btn-sm"
-        onclick="location.hash='#/obama'">${icon('inbox')} Нээх</span></div>
+    <div class="tile stat gold col-4">
+      <div class="ico">${icon('flame')}</div>
+      <div>
+        <div class="stat-num">${prog.totalXp}<small> XP</small></div>
+        <div class="stat-label">Түвшин ${prog.level} · дараагийн түвшин хүртэл ${prog.xpNext - prog.xpInto} XP</div>
+      </div>
     </div>
   </div>`;
 }
@@ -327,7 +327,7 @@ async function roomView(roomId) {
   <div class="stagger">${sectionsHtml}</div>
 
   <div class="tile col-12 mt-lg" style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;
-       background:linear-gradient(135deg,rgba(185,138,47,.1),transparent);border-color:rgba(185,138,47,.32)">
+       background:linear-gradient(135deg,rgba(224,165,0,.1),transparent);border-color:rgba(224,165,0,.32)">
     <div style="width:54px;height:54px;border-radius:16px;display:grid;place-items:center;
          background:var(--gold-glow);color:var(--gold);flex:none">${icon('gavel')}</div>
     <div style="flex:1;min-width:220px">

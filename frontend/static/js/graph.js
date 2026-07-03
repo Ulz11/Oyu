@@ -9,13 +9,13 @@
    ============================================================ */
 
 const GROUP_COLORS = {
-  core:       { fill: '#16294f', ring: '#ddba6b' },
-  mn:         { fill: '#2a4a9e', ring: '#7d97d6' },
-  intl:       { fill: '#b98a2f', ring: '#ddba6b' },
-  cases:      { fill: '#2e7d64', ring: '#6fbfa4' },
-  foundation: { fill: '#c2452d', ring: '#e0785a' },
-  business:   { fill: '#b98a2f', ring: '#ddba6b' },
-  fluency:    { fill: '#2e7d64', ring: '#6fbfa4' },
+  core:       { fill: '#a52a63', ring: '#f7a8cf' },  /* deep pink */
+  mn:         { fill: '#ec4899', ring: '#f9b6d6' },  /* pink (law) */
+  intl:       { fill: '#e0a500', ring: '#f5c518' },  /* yellow */
+  cases:      { fill: '#3b82f6', ring: '#9dc0fb' },  /* blue */
+  foundation: { fill: '#3b82f6', ring: '#9dc0fb' },  /* blue (chinese) */
+  business:   { fill: '#e0a500', ring: '#f5c518' },  /* yellow */
+  fluency:    { fill: '#ec4899', ring: '#f9b6d6' },  /* pink */
 };
 
 class KnowledgeGraph {
@@ -234,18 +234,18 @@ class KnowledgeGraph {
       const mx = (e.S.sx + e.T.sx) / 2, my = (e.S.sy + e.T.sy) / 2 - 12;
       ctx.quadraticCurveTo(mx, my, e.T.sx, e.T.sy);
       if (on) {
-        ctx.strokeStyle = `rgba(185,138,47,${0.75 * depthFade})`;
+        ctx.strokeStyle = `rgba(236,72,153,${0.75 * depthFade})`;
         ctx.lineWidth = 2;
       } else {
         const a = active ? 0.05 : 0.16;
-        ctx.strokeStyle = `rgba(24,34,56,${a * depthFade})`;
+        ctx.strokeStyle = `rgba(53,31,46,${a * depthFade})`;
         ctx.lineWidth = 1;
       }
       ctx.stroke();
       if (on && depthFade > 0.5) {
         ctx.save();
         ctx.font = '11px "Golos Text", sans-serif';
-        ctx.fillStyle = `rgba(74,85,112,${depthFade})`;
+        ctx.fillStyle = `rgba(111,85,102,${depthFade})`;
         ctx.textAlign = 'center';
         ctx.fillText(e.label, mx, my - 3);
         ctx.restore();
@@ -266,10 +266,10 @@ class KnowledgeGraph {
       // гүний сүүдэр
       ctx.beginPath();
       ctx.arc(n.sx, n.sy + n.sr * 0.14, n.sr, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(22,41,79,.16)';
+      ctx.fillStyle = 'rgba(120,45,90,.16)';
       ctx.fill();
 
-      if (isActive) { ctx.shadowColor = 'rgba(185,138,47,.55)'; ctx.shadowBlur = 24; }
+      if (isActive) { ctx.shadowColor = 'rgba(236,72,153,.55)'; ctx.shadowBlur = 24; }
       // бөмбөлөг мэт градиент
       const g = ctx.createRadialGradient(
         n.sx - n.sr * 0.35, n.sy - n.sr * 0.4, n.sr * 0.1,
@@ -296,9 +296,9 @@ class KnowledgeGraph {
         ctx.font = `${isActive ? '600 ' : '500 '}${fs}px "Golos Text", "Noto Sans SC", sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(245,241,232,.85)';
+        ctx.strokeStyle = 'rgba(253,243,248,.9)';
         ctx.strokeText(n.label, n.sx, n.sy + n.sr + 5);
-        ctx.fillStyle = '#182238';
+        ctx.fillStyle = '#351f2e';
         ctx.fillText(n.label, n.sx, n.sy + n.sr + 5);
         ctx.restore();
       }
