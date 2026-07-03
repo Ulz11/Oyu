@@ -35,4 +35,12 @@ const API = {
   notes:      () => API._get('/api/notes'),
   saveNote:   (note) => API._post('/api/notes', note),
   deleteNote: (id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }).then(r => r.json()),
+
+  obamaList:   () => API._get('/api/obama'),
+  obamaUnread: () => API._get('/api/obama/unread'),
+  obamaCreate: (item) => API._post('/api/obama', item),
+  obamaReadAll: () => fetch('/api/obama/read-all', { method: 'POST' }).then(r => r.json()),
+  obamaRead:   (id) => fetch(`/api/obama/${id}/read`, { method: 'POST' }).then(r => r.json()),
+  obamaDone:   (id) => fetch(`/api/obama/${id}/done`, { method: 'POST' }).then(r => r.json()),
+  obamaDelete: (id) => fetch(`/api/obama/${id}`, { method: 'DELETE' }).then(r => r.json()),
 };

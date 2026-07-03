@@ -37,6 +37,11 @@ const ICONS = {
   play: '<path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8Z"/>',
   chat: '<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 3.5V6Z"/><path d="M8.5 9h7"/><path d="M8.5 12.5h4.5"/>',
   cube: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/>',
+  briefcase: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+  bell: '<path d="M12 3a5 5 0 0 0-5 5v3.2c0 .95-.35 1.87-1 2.58L5 15h14l-1-1.22c-.65-.71-1-1.63-1-2.58V8a5 5 0 0 0-5-5Z"/><path d="M10 18a2 2 0 0 0 4 0"/>',
+  link2: '<path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3.5 10h17"/>',
+  inbox: '<path d="M4 12h4l2 3h4l2-3h4"/><path d="M4 12 6 5h12l2 7"/><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/>',
 };
 
 function icon(name, cls = '') {

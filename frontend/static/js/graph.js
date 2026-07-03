@@ -12,8 +12,10 @@ const GROUP_COLORS = {
   core:       { fill: '#16294f', ring: '#ddba6b' },
   mn:         { fill: '#2a4a9e', ring: '#7d97d6' },
   intl:       { fill: '#b98a2f', ring: '#ddba6b' },
+  cases:      { fill: '#2e7d64', ring: '#6fbfa4' },
   foundation: { fill: '#c2452d', ring: '#e0785a' },
   business:   { fill: '#b98a2f', ring: '#ddba6b' },
+  fluency:    { fill: '#2e7d64', ring: '#6fbfa4' },
 };
 
 class KnowledgeGraph {

@@ -48,6 +48,15 @@ class NoteIn(BaseModel):
     body: str = ""
 
 
+class ObamaItemIn(BaseModel):
+    type: str = "note"          # reading | task | note
+    title: str
+    body: str = ""
+    link: str | None = None
+    due_date: str | None = None
+    priority: str = "normal"    # low | normal | high
+
+
 # ============================== Агуулгын API ===============================
 
 @app.get("/api/rooms")
@@ -180,12 +189,16 @@ def progress():
     law_done = sum(1 for p in prog if p["room"] == "law")
     intl_done = sum(1 for p in prog if p["lesson_id"].startswith("law-intl"))
     bizcn_done = sum(1 for p in prog if p["lesson_id"].startswith("cn-b"))
+    cases_done = sum(1 for p in prog if p["lesson_id"].startswith("case-"))
+    cn_adv_done = sum(1 for p in prog if p["lesson_id"].startswith("cn-adv"))
     perfect = sum(1 for p in prog if p["perfect"])
     exams_passed = sum(1 for e in exams if e["passed"])
+    obama_tasks_done = db.done_obama_tasks_count()
 
     stats = {"lessons": lessons_done, "chinese": chinese_done, "law": law_done,
-             "intl": intl_done, "bizcn": bizcn_done,
-             "perfect": perfect, "exams": exams_passed}
+             "intl": intl_done, "bizcn": bizcn_done, "cases": cases_done,
+             "cn_adv": cn_adv_done, "perfect": perfect, "exams": exams_passed,
+             "obama_tasks": obama_tasks_done}
     earned = [b for b in C.BADGES if _badge_ok(b["rule"], stats)]
 
     level = 1 + total_xp // 300
@@ -197,6 +210,7 @@ def progress():
         "examsPassed": exams_passed, "chinese": chinese_done, "law": law_done,
         "badges": [{**b, "earned": b in earned} for b in C.BADGES],
         "proverb": C.PROVERBS[day % len(C.PROVERBS)],
+        "obamaUnread": db.unread_obama_count(),
         "progress": prog, "exams": exams,
     }
 
@@ -258,6 +272,56 @@ def note_save(note: NoteIn):
 @app.delete("/api/notes/{note_id}")
 def note_delete(note_id: int):
     db.delete_note(note_id)
+    return {"ok": True}
+
+
+# ============================ Obama Room API ===============================
+# Обамагийн Оюуд өгөх уншлага, даалгавар, тэмдэглэлийн сан.
+# "Мэдэгдэл" гэдэг нь энэ апп доторх unread badge + toast хэлбэртэй —
+# и-мэйл/push тохируулаагүй тул гадаад суваг руу илгээдэггүй.
+
+@app.get("/api/obama")
+def obama_list():
+    return db.list_obama_items()
+
+
+@app.get("/api/obama/unread")
+def obama_unread():
+    return {"unread": db.unread_obama_count()}
+
+
+@app.post("/api/obama")
+def obama_create(item: ObamaItemIn):
+    if item.type not in ("reading", "task", "note"):
+        raise HTTPException(400, "Буруу төрөл")
+    iid = db.add_obama_item(item.type, item.title, item.body, item.link,
+                             item.due_date, item.priority)
+    return {"id": iid}
+
+
+@app.post("/api/obama/read-all")
+def obama_read_all():
+    db.mark_all_obama_read()
+    return {"ok": True}
+
+
+@app.post("/api/obama/{item_id}/read")
+def obama_read(item_id: int):
+    db.mark_obama_read(item_id)
+    return {"ok": True}
+
+
+@app.post("/api/obama/{item_id}/done")
+def obama_done(item_id: int):
+    newval = db.toggle_obama_done(item_id)
+    if newval is None:
+        raise HTTPException(404, "Олдсонгүй")
+    return {"done": bool(newval)}
+
+
+@app.delete("/api/obama/{item_id}")
+def obama_delete(item_id: int):
+    db.delete_obama_item(item_id)
     return {"ok": True}
 
 

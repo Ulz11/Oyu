@@ -3,7 +3,8 @@
    Аудио (Web Speech · zh-CN) + 3D мэдлэгийн граф + шинэ палитр
    ============================================================ */
 
-const state = { progress: null, answers: {}, graph: null, graphRoom: 'law', graphMode: '3d' };
+const state = { progress: null, answers: {}, graph: null, graphRoom: 'law', graphMode: '3d',
+  obamaUnread: 0, obamaComposeType: 'reading' };
 const view = document.getElementById('view');
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -124,6 +125,8 @@ const NAV = [
   { id: 'graph', icon: 'graph', label: 'Мэдлэгийн граф' },
   { id: 'files', icon: 'folder', label: 'Миний файл' },
   { id: 'progress', icon: 'chart', label: 'Явц ба амжилт' },
+  { group: 'Мэнторын өрөө' },
+  { id: 'obama', icon: 'briefcase', label: 'Obama Room', unread: true },
 ];
 
 function renderNav() {
@@ -132,8 +135,10 @@ function renderNav() {
   nav.innerHTML = NAV.map(n => {
     if (n.group) return `<div class="nav-group">${n.group}</div>`;
     const active = (cur === n.id) || (n.id && cur.startsWith(n.id)) || (n.id === '' && cur === '');
+    const badge = (n.unread && state.obamaUnread > 0)
+      ? `<span class="nav-badge-dot">${state.obamaUnread}</span>` : '';
     return `<a class="nav-item ${active ? 'active' : ''}" href="#/${n.id}">
-      ${icon(n.icon)}<span>${n.label}</span></a>`;
+      ${icon(n.icon)}<span>${n.label}</span>${badge}</a>`;
   }).join('');
 }
 
@@ -170,6 +175,7 @@ async function router() {
     if (route === 'graph') return graphView();
     if (route === 'files') return filesView();
     if (route === 'progress') return progressView();
+    if (route === 'obama') return obamaView();
     dashboard();
   } catch (e) {
     view.innerHTML = `<div class="empty">${icon('x')}<p>Алдаа гарлаа: ${esc(e.message)}</p></div>`;
@@ -257,11 +263,13 @@ async function dashboard() {
       </div>
     </div>
     <div class="tile col-4">
-      <div class="tile-eyebrow">${icon('sound','lead')}<h3>Аудио хичээл</h3></div>
-      <p style="color:var(--ink-2);font-size:14px">Хятад үг, харилцан яриаг жинхэнэ дуудлагаар
-      сонсоорой — үг бүр дээр 🔊 товч бий.</p>
-      <div style="margin-top:14px"><span class="btn btn-ghost btn-sm"
-        onclick="location.hash='#/room/chinese'">${icon('language')} Сонсох</span></div>
+      <div class="tile-eyebrow">${icon('briefcase','lead')}<h3>Obama Room</h3>
+        ${prog.obamaUnread > 0 ? `<span class="nav-badge-dot">${prog.obamaUnread}</span>` : ''}</div>
+      <p style="color:var(--ink-2);font-size:14px">${prog.obamaUnread > 0
+        ? `${prog.obamaUnread} шинэ уншлага/даалгавар хүлээж байна.`
+        : 'Уншлага, даалгавар, тэмдэглэл энд ирнэ.'}</p>
+      <div style="margin-top:14px"><span class="btn btn-gold btn-sm"
+        onclick="location.hash='#/obama'">${icon('inbox')} Нээх</span></div>
     </div>
   </div>`;
 }
@@ -369,6 +377,14 @@ async function lessonView(lessonId) {
             <div class="py">${esc(ln.pinyin)}</div>
             <div class="mn">${esc(ln.mn)}</div>
           </div></div>`).join('')}</div>`;
+      case 'compare': return `<div class="block block-compare">
+        ${b.title ? `<h4>${icon('compass')} ${esc(b.title)}</h4>` : ''}
+        <div class="compare-grid">
+          <div class="compare-col left"><div class="compare-lab">${esc(b.left.label)}</div>
+            <div class="compare-body">${cjk(esc(b.left.body))}</div></div>
+          <div class="compare-col right"><div class="compare-lab">${esc(b.right.label)}</div>
+            <div class="compare-body">${cjk(esc(b.right.body))}</div></div>
+        </div></div>`;
       default: return '';
     }
   };
@@ -645,8 +661,10 @@ async function graphView() {
   </div>`;
 
   const legends = {
-    law: [['core', 'Гол ойлголт'], ['mn', 'Монгол эрх зүй'], ['intl', 'Олон улс']],
-    chinese: [['core', 'Гол'], ['foundation', 'Суурь'], ['business', 'Бизнес']],
+    law: [['core', 'Гол ойлголт'], ['mn', 'Монгол эрх зүй'], ['intl', 'Олон улс'],
+          ['cases', 'Дэлхийн кейс']],
+    chinese: [['core', 'Гол'], ['foundation', 'Суурь'], ['business', 'Бизнес'],
+              ['fluency', 'Хэлц · Уран зохиол']],
   };
   $('#graphLegend').innerHTML = legends[room].map(([g, l]) =>
     `<span><i style="background:${GROUP_COLORS[g].fill}"></i>${l}</span>`).join('');
@@ -766,6 +784,135 @@ async function handleUpload(files) {
   filesView();
 }
 
+/* =============================== OBAMA ROOM =============================== */
+const OBAMA_TYPES = {
+  reading: { label: 'Уншлага', icon: 'link2' },
+  task:    { label: 'Даалгавар', icon: 'briefcase' },
+  note:    { label: 'Тэмдэглэл', icon: 'bell' },
+};
+
+async function obamaView() {
+  const items = await API.obamaList();
+  const wasUnread = new Set(items.filter(i => !i.read).map(i => i.id));
+
+  view.innerHTML = `
+  <div class="page-head">
+    <div class="eyebrow">${icon('briefcase')} Мэнторын өрөө</div>
+    <h1 class="page-title">Obama <span class="accent">Room</span></h1>
+    <p class="page-sub">Энд Обама уншлага, даалгавар, тэмдэглэл нэмнэ — та тэдгээрийг мэдэгдлээр
+      хүлээн авна. Даалгаврыг дуусгаад тэмдэглэ, уншлагыг холбоосоор нь нээ.</p>
+  </div>
+
+  <div class="compose-panel">
+    <h3>${icon('plus')} Шинэ зүйл нэмэх</h3>
+    <div class="type-seg" id="obamaTypeSeg">
+      ${Object.entries(OBAMA_TYPES).map(([k, v]) => `
+        <button data-t="${k}" class="t-${k} ${state.obamaComposeType === k ? 'active' : ''}">
+          ${icon(v.icon)} ${v.label}</button>`).join('')}
+    </div>
+    <div class="compose-fields">
+      <input type="text" id="obTitle" placeholder="Гарчиг…">
+      <textarea id="obBody" placeholder="Агуулга, зааварчилгаа…"></textarea>
+      <div class="row2" id="obReadingRow">
+        <input type="url" id="obLink" placeholder="Холбоос (унших материал) — заавал биш">
+      </div>
+      <div class="row2" id="obTaskRow">
+        <input type="date" id="obDue" placeholder="Дуусах хугацаа">
+        <select id="obPriority" style="border:1.5px solid var(--line);border-radius:12px;
+          padding:11px 14px;font-family:var(--sans);font-size:14.5px;color:var(--ink);
+          background:var(--card-2)">
+          <option value="normal">Энгийн ач холбогдол</option>
+          <option value="high">Яаралтай</option>
+          <option value="low">Яарах шаардлагагүй</option>
+        </select>
+      </div>
+    </div>
+    <div class="compose-foot">
+      <button class="btn btn-primary" id="obamaSubmit">${icon('bell')} Нэмээд мэдэгдэх</button>
+    </div>
+  </div>
+
+  <div id="obamaFeed">${items.length ? items.map(obamaCard).join('')
+    : `<div class="empty">${icon('inbox')}<p>Одоогоор зүйл алга. Дээрх маягтаар эхнийхээ нэмээрэй.</p></div>`}</div>`;
+
+  wireObamaCompose();
+  wireObamaFeed();
+
+  // Feed-ийг үзсэнээр unread-г арилгана (inbox семантик)
+  if (wasUnread.size) {
+    await API.obamaReadAll();
+    state.obamaUnread = 0;
+    renderNav();
+  }
+}
+
+function obamaCard(it) {
+  const meta = OBAMA_TYPES[it.type] || OBAMA_TYPES.note;
+  const unread = !it.read;
+  const dueBadge = it.due_date
+    ? `<span class="memo-due ${it.priority === 'high' ? 'high' : ''}">${icon('calendar')} ${esc(it.due_date)}</span>`
+    : '';
+  const linkBadge = it.link
+    ? `<a href="${esc(it.link)}" target="_blank" rel="noopener">${icon('link2')} Холбоос нээх</a>` : '';
+  const taskCheck = it.type === 'task'
+    ? `<span class="memo-check ${it.done ? 'done' : ''}" data-toggledone="${it.id}">
+        ${icon(it.done ? 'check' : 'target')} ${it.done ? 'Дуусгасан' : 'Дуусгах'}</span>` : '';
+  return `<div class="memo-card t-${it.type} ${unread ? 'unread' : ''}" data-item="${it.id}">
+    <div class="memo-ic">${icon(meta.icon)}</div>
+    <div class="memo-main">
+      <div class="memo-head">
+        <span class="tt">${esc(it.title)}</span>
+        <span class="memo-tag">${meta.label}</span>
+        ${unread ? '<span class="pill" style="background:var(--gold-glow);color:var(--gold)">Шинэ</span>' : ''}
+      </div>
+      ${it.body ? `<div class="memo-body">${esc(it.body)}</div>` : ''}
+      <div class="memo-meta">${dueBadge}${linkBadge}${taskCheck}
+        <span style="font-size:11.5px;color:var(--ink-soft)">${new Date(it.created_at).toLocaleString('mn-MN')}</span>
+      </div>
+    </div>
+    <div class="memo-act"><button class="icon-btn danger" data-delobama="${it.id}">${icon('trash')}</button></div>
+  </div>`;
+}
+
+function wireObamaCompose() {
+  $$('#obamaTypeSeg button').forEach(b => b.onclick = () => {
+    state.obamaComposeType = b.dataset.t;
+    $$('#obamaTypeSeg button').forEach(x => x.classList.toggle('active', x === b));
+    $('#obReadingRow').classList.toggle('hidden', b.dataset.t !== 'reading');
+    $('#obTaskRow').classList.toggle('hidden', b.dataset.t !== 'task');
+  });
+  $('#obReadingRow').classList.toggle('hidden', state.obamaComposeType !== 'reading');
+  $('#obTaskRow').classList.toggle('hidden', state.obamaComposeType !== 'task');
+
+  $('#obamaSubmit').onclick = async () => {
+    const title = $('#obTitle').value.trim();
+    if (!title) { toast('Гарчиг оруулна уу', 'x'); return; }
+    const payload = {
+      type: state.obamaComposeType,
+      title,
+      body: $('#obBody').value.trim(),
+      link: $('#obLink').value.trim() || null,
+      due_date: $('#obDue').value || null,
+      priority: $('#obPriority').value,
+    };
+    await API.obamaCreate(payload);
+    toast('Нэмэгдлээ — Оюуд мэдэгдэл очлоо', 'bell');
+    obamaView();
+  };
+}
+
+function wireObamaFeed() {
+  $$('[data-toggledone]').forEach(b => b.onclick = async () => {
+    await API.obamaDone(b.dataset.toggledone);
+    obamaView();
+  });
+  $$('[data-delobama]').forEach(b => b.onclick = async () => {
+    await API.obamaDelete(b.dataset.delobama);
+    toast('Устгагдлаа');
+    obamaView();
+  });
+}
+
 /* =============================== PROGRESS =============================== */
 async function progressView() {
   const p = await API.progress();
@@ -820,6 +967,13 @@ document.body.appendChild(menuBtn);
 
 window.addEventListener('hashchange', router);
 (async () => {
-  try { state.progress = await API.progress(); renderMiniProgress(); } catch (e) {}
+  try {
+    state.progress = await API.progress(); renderMiniProgress();
+    const u = await API.obamaUnread();
+    state.obamaUnread = u.unread;
+    if (u.unread > 0 && location.hash.replace(/^#\//, '') !== 'obama') {
+      setTimeout(() => toast(`Obama Room-д ${u.unread} шинэ зүйл ирлээ`, 'bell'), 500);
+    }
+  } catch (e) {}
   router();
 })();

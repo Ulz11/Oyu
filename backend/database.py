@@ -61,6 +61,18 @@ def init_db() -> None:
                 body        TEXT,
                 updated_at  TEXT
             );
+            CREATE TABLE IF NOT EXISTS obama_items (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                type        TEXT,
+                title       TEXT,
+                body        TEXT,
+                link        TEXT,
+                due_date    TEXT,
+                priority    TEXT DEFAULT 'normal',
+                done        INTEGER DEFAULT 0,
+                read        INTEGER DEFAULT 0,
+                created_at  TEXT
+            );
             """
         )
 
@@ -167,3 +179,60 @@ def delete_note(note_id):
     with connect() as c:
         c.execute("DELETE FROM notes WHERE id=?", (note_id,))
     return True
+
+
+# --------------------------- Obama Room (даалгавар) -------------------------
+
+def add_obama_item(item_type, title, body, link, due_date, priority):
+    with connect() as c:
+        cur = c.execute(
+            """INSERT INTO obama_items
+               (type, title, body, link, due_date, priority, done, read, created_at)
+               VALUES (?,?,?,?,?,?,0,0,?)""",
+            (item_type, title, body, link, due_date, priority, _now()),
+        )
+        return cur.lastrowid
+
+
+def list_obama_items():
+    with connect() as c:
+        rows = c.execute("SELECT * FROM obama_items ORDER BY created_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def unread_obama_count():
+    with connect() as c:
+        return c.execute("SELECT COUNT(*) FROM obama_items WHERE read=0").fetchone()[0]
+
+
+def mark_obama_read(item_id):
+    with connect() as c:
+        c.execute("UPDATE obama_items SET read=1 WHERE id=?", (item_id,))
+
+
+def mark_all_obama_read():
+    with connect() as c:
+        c.execute("UPDATE obama_items SET read=1")
+
+
+def toggle_obama_done(item_id):
+    with connect() as c:
+        row = c.execute("SELECT done FROM obama_items WHERE id=?", (item_id,)).fetchone()
+        if not row:
+            return None
+        newval = 0 if row["done"] else 1
+        c.execute("UPDATE obama_items SET done=? WHERE id=?", (newval, item_id))
+        return newval
+
+
+def delete_obama_item(item_id):
+    with connect() as c:
+        c.execute("DELETE FROM obama_items WHERE id=?", (item_id,))
+    return True
+
+
+def done_obama_tasks_count():
+    with connect() as c:
+        return c.execute(
+            "SELECT COUNT(*) FROM obama_items WHERE type='task' AND done=1"
+        ).fetchone()[0]
