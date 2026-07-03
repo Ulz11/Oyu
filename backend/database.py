@@ -1,0 +1,169 @@
+# -*- coding: utf-8 -*-
+"""SQLite давхарга — явц, файл, тэмдэглэл хадгална."""
+import sqlite3
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+UPLOAD_DIR = DATA_DIR / "uploads"
+DB_PATH = DATA_DIR / "oyu.db"
+
+DATA_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def connect() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db() -> None:
+    with connect() as c:
+        c.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS progress (
+                lesson_id   TEXT PRIMARY KEY,
+                room        TEXT,
+                score       INTEGER DEFAULT 0,
+                total       INTEGER DEFAULT 0,
+                xp          INTEGER DEFAULT 0,
+                perfect     INTEGER DEFAULT 0,
+                completed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS exam_results (
+                room        TEXT PRIMARY KEY,
+                score       INTEGER,
+                total       INTEGER,
+                passed      INTEGER,
+                taken_at    TEXT
+            );
+            CREATE TABLE IF NOT EXISTS files (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT,
+                stored      TEXT,
+                room        TEXT,
+                size        INTEGER,
+                content_type TEXT,
+                uploaded_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS notes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                room        TEXT,
+                title       TEXT,
+                body        TEXT,
+                updated_at  TEXT
+            );
+            """
+        )
+
+
+# ----------------------------- Явц (Progress) ------------------------------
+
+def save_progress(lesson_id, room, score, total, xp, perfect):
+    with connect() as c:
+        c.execute(
+            """INSERT INTO progress (lesson_id, room, score, total, xp, perfect, completed_at)
+               VALUES (?,?,?,?,?,?,?)
+               ON CONFLICT(lesson_id) DO UPDATE SET
+                 score=MAX(score, excluded.score),
+                 total=excluded.total,
+                 xp=MAX(xp, excluded.xp),
+                 perfect=MAX(perfect, excluded.perfect),
+                 completed_at=excluded.completed_at""",
+            (lesson_id, room, score, total, xp, perfect, _now()),
+        )
+
+
+def save_exam(room, score, total, passed):
+    with connect() as c:
+        c.execute(
+            """INSERT INTO exam_results (room, score, total, passed, taken_at)
+               VALUES (?,?,?,?,?)
+               ON CONFLICT(room) DO UPDATE SET
+                 score=MAX(score, excluded.score),
+                 total=excluded.total,
+                 passed=MAX(passed, excluded.passed),
+                 taken_at=excluded.taken_at""",
+            (room, score, total, 1 if passed else 0, _now()),
+        )
+
+
+def get_progress():
+    with connect() as c:
+        rows = c.execute("SELECT * FROM progress").fetchall()
+        exams = c.execute("SELECT * FROM exam_results").fetchall()
+    return [dict(r) for r in rows], [dict(r) for r in exams]
+
+
+# ------------------------------- Файл (Files) ------------------------------
+
+def add_file(name, stored, room, size, content_type):
+    with connect() as c:
+        cur = c.execute(
+            """INSERT INTO files (name, stored, room, size, content_type, uploaded_at)
+               VALUES (?,?,?,?,?,?)""",
+            (name, stored, room, size, content_type, _now()),
+        )
+        return cur.lastrowid
+
+
+def list_files():
+    with connect() as c:
+        rows = c.execute("SELECT * FROM files ORDER BY uploaded_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_file(file_id):
+    with connect() as c:
+        row = c.execute("SELECT * FROM files WHERE id=?", (file_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def delete_file(file_id):
+    f = get_file(file_id)
+    if not f:
+        return False
+    with connect() as c:
+        c.execute("DELETE FROM files WHERE id=?", (file_id,))
+    try:
+        (UPLOAD_DIR / f["stored"]).unlink(missing_ok=True)
+    except OSError:
+        pass
+    return True
+
+
+# ----------------------------- Тэмдэглэл (Notes) ---------------------------
+
+def upsert_note(note_id, room, title, body):
+    with connect() as c:
+        if note_id:
+            c.execute(
+                "UPDATE notes SET room=?, title=?, body=?, updated_at=? WHERE id=?",
+                (room, title, body, _now(), note_id),
+            )
+            return note_id
+        cur = c.execute(
+            "INSERT INTO notes (room, title, body, updated_at) VALUES (?,?,?,?)",
+            (room, title, body, _now()),
+        )
+        return cur.lastrowid
+
+
+def list_notes():
+    with connect() as c:
+        rows = c.execute("SELECT * FROM notes ORDER BY updated_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_note(note_id):
+    with connect() as c:
+        c.execute("DELETE FROM notes WHERE id=?", (note_id,))
+    return True

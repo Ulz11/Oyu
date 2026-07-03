@@ -1,0 +1,8 @@
+# Render.com blueprint — https://render.com/deploy?repo=https://github.com/Ulz11/Oyu
+services:
+  - type: web
+    name: oyu
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true

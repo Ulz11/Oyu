@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/oyu.db
+data/uploads/*
+!data/uploads/.gitkeep
+.git/
+.claude/
+.idea/
+.vscode/

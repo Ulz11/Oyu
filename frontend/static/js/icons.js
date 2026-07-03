@@ -1,0 +1,45 @@
+/* Oyu · SVG icon set — inline, offline, 1.6 stroke, currentColor */
+const ICONS = {
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  scale: '<path d="M12 3v18"/><path d="M7 21h10"/><path d="M6 6h12"/><path d="M6 6 3 13a3 3 0 0 0 6 0L6 6Z"/><path d="M18 6l-3 7a3 3 0 0 0 6 0l-3-7Z"/>',
+  language: '<path d="M4 5h9"/><path d="M8.5 3v2c0 4.5-2 8-5 10"/><path d="M6 9c1.5 3 3.5 5 6.5 6"/><path d="m12 21 4-9 4 9"/><path d="M13.5 18h5"/>',
+  gavel: '<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m9.5 8.5 6 6"/><path d="m14.5 3.5 6 6"/><path d="m17.5 6.5-6 6"/><path d="M20 21H10"/>',
+  graph: '<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="7" cy="18" r="2.4"/><circle cx="17" cy="17" r="2.4"/><path d="M8 7.5 15.5 7"/><path d="M7 8.5 7 15.5"/><path d="m8.5 16.5 6.5.5"/><path d="M17.5 9.3 17 14.6"/><path d="m8 16 8-8"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+  chart: '<path d="M4 20V4"/><path d="M4 20h16"/><rect x="7" y="12" width="3" height="5" rx=".6"/><rect x="12" y="8" width="3" height="9" rx=".6"/><rect x="17" y="14" width="3" height="3" rx=".6"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4Z"/><path d="M4 5v14"/><path d="M17 5h1a2 2 0 0 1 2 2v10"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
+  sparkle: '<path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6Z"/><path d="M18.5 15.5l.7 2 .8-2 .8-.7-.8-.8-.7-.8-.8.8-.8.7Z"/>',
+  flame: '<path d="M12 3c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1 .3-1.8.8-2.5C9 10 9.5 11 11 11c.5-2-.5-3.5-.5-5 0-1.5 1-2.5 1.5-3Z"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  star: '<path d="M12 3.5 14.6 9l6 .8-4.4 4.2 1.1 6-5.3-2.9L6.7 20l1.1-6L3.4 9.8l6-.8Z"/>',
+  check: '<path d="M4 12.5 9 17.5 20 6.5"/>',
+  x: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+  arrowLeft: '<path d="M19 12H5"/><path d="m11 18-6-6 6-6"/>',
+  brain: '<path d="M9.5 4a2.5 2.5 0 0 0-2.5 2.5A2.5 2.5 0 0 0 5 9c0 1 .5 1.8 1.3 2.3A2.6 2.6 0 0 0 6 13c0 1.4 1 2.5 2.3 2.5.3 1.1 1.3 1.9 2.4 1.9V4Z"/><path d="M14.5 4a2.5 2.5 0 0 1 2.5 2.5A2.5 2.5 0 0 1 19 9c0 1-.5 1.8-1.3 2.3.4.5.6 1.1.6 1.7 0 1.4-1 2.5-2.3 2.5-.3 1.1-1.3 1.9-2.4 1.9V4Z"/><path d="M12 15.5V21"/>',
+  quote: '<path d="M8 7c-2 0-3.5 1.5-3.5 3.5S6 14 8 14c0 2-1 3.5-3 4"/><path d="M18 7c-2 0-3.5 1.5-3.5 3.5S16 14 18 14c0 2-1 3.5-3 4"/>',
+  bulb: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3Z"/>',
+  scroll: '<path d="M6 4h11a2 2 0 0 1 2 2v11a3 3 0 0 0 3 3H8a2 2 0 0 1-2-2V4Z"/><path d="M6 4a2 2 0 0 0-2 2v2h2"/><path d="M9 8h7"/><path d="M9 12h7"/><path d="M9 16h4"/>',
+  file: '<path d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5"/>',
+  upload: '<path d="M12 15V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/>',
+  download: '<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/>',
+  trash: '<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  menu: '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+  compass: '<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/>',
+  award: '<circle cx="12" cy="9" r="5.5"/><path d="m8.5 13.5-1.5 7 5-3 5 3-1.5-7"/>',
+  layers: '<path d="m12 3 8 4.5-8 4.5-8-4.5Z"/><path d="m4 12 8 4.5 8-4.5"/><path d="m4 16.5 8 4.5 8-4.5"/>',
+  feather: '<path d="M20 4C11 4 5 10 5 19l-1 1"/><path d="M20 4c0 6-4 10-9 10H8"/><path d="M14 8 8 14"/>',
+  users: '<circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2.2-5 5-5s5 2 5 5"/><path d="M15 6a3 3 0 0 1 0 5.5"/><path d="M16.5 15c2 .5 3.5 2.4 3.5 5"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.5 2.3 4 5.3 4 8.5s-1.5 6.2-4 8.5c-2.5-2.3-4-5.3-4-8.5s1.5-6.2 4-8.5Z"/>',
+  sound: '<path d="M11 5 6.5 8.5H3.5v7h3L11 19Z"/><path d="M14.5 9a4 4 0 0 1 0 6"/><path d="M17 6.5a7.5 7.5 0 0 1 0 11"/>',
+  play: '<path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11.3-7.2a.8.8 0 0 0 0-1.4L8.2 4.1A.8.8 0 0 0 7 4.8Z"/>',
+  chat: '<path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4 3.5V6Z"/><path d="M8.5 9h7"/><path d="M8.5 12.5h4.5"/>',
+  cube: '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/>',
+};
+
+function icon(name, cls = '') {
+  const p = ICONS[name] || '';
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+}
