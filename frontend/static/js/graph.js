@@ -26,6 +26,11 @@ class KnowledgeGraph {
     this.mode = opts.mode || '3d';           // '3d' | '2d'
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
 
+    // Theme-ийн өнгүүд CSS хувьсагчаас — dark/light хоёуланд зөв харагдана
+    this._readTheme();
+    this._onTheme = () => this._readTheme();
+    window.addEventListener('themechange', this._onTheme);
+
     // Камер
     this.rotY = 0.45; this.rotX = 0.22;
     this.zoom = 1; this.focal = 720;
@@ -66,6 +71,18 @@ class KnowledgeGraph {
   }
 
   setMode(mode) { this.mode = mode; this.alpha = 1; }
+
+  _readTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = (name, fb) => (cs.getPropertyValue(name) || '').trim() || fb;
+    this.theme = {
+      ink: v('--g-ink', '53,31,46'),        // ирмэг (rgb гурвал)
+      mut: v('--g-mut', '111,85,102'),      // ирмэгийн шошго
+      halo: v('--g-halo', '253,243,248'),   // шошгоны цагаан хүрээ
+      label: v('--g-label', '#351f2e'),     // шошгоны бичиг
+      shadow: v('--g-shadow', '120,45,90'), // зангилааны сүүдэр
+    };
+  }
 
   /* ---------------------------- харилцан үйлдэл ---------------------------- */
   _bind() {
@@ -238,14 +255,14 @@ class KnowledgeGraph {
         ctx.lineWidth = 2;
       } else {
         const a = active ? 0.05 : 0.16;
-        ctx.strokeStyle = `rgba(53,31,46,${a * depthFade})`;
+        ctx.strokeStyle = `rgba(${this.theme.ink},${a * depthFade})`;
         ctx.lineWidth = 1;
       }
       ctx.stroke();
       if (on && depthFade > 0.5) {
         ctx.save();
         ctx.font = '11px "Golos Text", sans-serif';
-        ctx.fillStyle = `rgba(111,85,102,${depthFade})`;
+        ctx.fillStyle = `rgba(${this.theme.mut},${depthFade})`;
         ctx.textAlign = 'center';
         ctx.fillText(e.label, mx, my - 3);
         ctx.restore();
@@ -266,7 +283,7 @@ class KnowledgeGraph {
       // гүний сүүдэр
       ctx.beginPath();
       ctx.arc(n.sx, n.sy + n.sr * 0.14, n.sr, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(120,45,90,.16)';
+      ctx.fillStyle = `rgba(${this.theme.shadow},.16)`;
       ctx.fill();
 
       if (isActive) { ctx.shadowColor = 'rgba(236,72,153,.55)'; ctx.shadowBlur = 24; }
@@ -296,9 +313,9 @@ class KnowledgeGraph {
         ctx.font = `${isActive ? '600 ' : '500 '}${fs}px "Golos Text", "Noto Sans SC", sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
-        ctx.strokeStyle = 'rgba(253,243,248,.9)';
+        ctx.strokeStyle = `rgba(${this.theme.halo},.9)`;
         ctx.strokeText(n.label, n.sx, n.sy + n.sr + 5);
-        ctx.fillStyle = '#351f2e';
+        ctx.fillStyle = this.theme.label;
         ctx.fillText(n.label, n.sx, n.sy + n.sr + 5);
         ctx.restore();
       }
@@ -330,5 +347,6 @@ class KnowledgeGraph {
   destroy() {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('themechange', this._onTheme);
   }
 }

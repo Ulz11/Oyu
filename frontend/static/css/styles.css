@@ -55,6 +55,13 @@
   --r-lg: 28px;
   --r-xl: 34px;
 
+  /* Мэдлэгийн графын canvas өнгүүд (rgb гурвал / hex) */
+  --g-ink:    53,31,46;
+  --g-mut:    111,85,102;
+  --g-halo:   253,243,248;
+  --g-label:  #351f2e;
+  --g-shadow: 120,45,90;
+
   --ease: cubic-bezier(.32, .72, 0, 1);
   --spring: cubic-bezier(.34, 1.45, .5, 1);
   --sans:  'Golos Text', system-ui, sans-serif;
@@ -62,6 +69,99 @@
   --cjk:   'Noto Sans SC', var(--sans);
   --cjk-serif: 'Noto Serif SC', var(--serif);
 }
+
+/* ============================================================
+   ХАРАНХУЙ ГОРИМ — гүн чавган дэвсгэр, гэрэлт ягаан/алт/цэнхэр
+   ============================================================ */
+html[data-theme="dark"] {
+  --paper:      #1c1019;
+  --paper-2:    #251522;
+  --card:       #2a1a26;
+  --card-2:     #32202e;
+
+  --ink:        #f6e9f1;
+  --ink-2:      #cdb2c4;
+  --ink-soft:   #977c8e;
+
+  --lapis:      #f472b6;
+  --lapis-deep: #fbc4de;
+  --lapis-glow: rgba(244, 114, 182, 0.16);
+
+  --verm:       #6ea8fe;
+  --verm-lt:    #9dc0fb;
+  --verm-glow:  rgba(110, 168, 254, 0.15);
+
+  --gold:       #f0b428;
+  --gold-lt:    #f7cf6b;
+  --gold-glow:  rgba(240, 180, 40, 0.15);
+
+  --ok:         #4ecb96;
+  --ok-bg:      rgba(78, 203, 150, 0.13);
+  --err:        #f47c8a;
+  --err-bg:     rgba(244, 124, 138, 0.13);
+
+  --line:       rgba(246, 233, 241, 0.12);
+  --line-soft:  rgba(246, 233, 241, 0.06);
+  --fill:       rgba(246, 233, 241, 0.05);
+  --fill-2:     rgba(246, 233, 241, 0.09);
+
+  --sh-1: 0 1px 2px rgba(0,0,0,.25), 0 2px 10px rgba(0,0,0,.22);
+  --sh-2: 0 2px 6px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.32);
+  --sh-3: 0 8px 26px rgba(0,0,0,.4), 0 28px 70px rgba(0,0,0,.45);
+  --sh-gold: 0 8px 26px rgba(240,180,40,.2);
+  --sh-verm: 0 8px 26px rgba(110,168,254,.18);
+
+  --g-ink:    246,233,241;
+  --g-mut:    205,178,196;
+  --g-halo:   28,16,25;
+  --g-label:  #f6e9f1;
+  --g-shadow: 0,0,0;
+}
+
+/* Харанхуйд тохируулах компонентууд */
+html[data-theme="dark"] body::before {
+  background:
+    radial-gradient(1200px 760px at 85% -10%, rgba(240,180,40,.07), transparent 58%),
+    radial-gradient(950px 660px at -8% 110%, rgba(244,114,182,.09), transparent 56%),
+    radial-gradient(700px 500px at 108% 78%, rgba(110,168,254,.06), transparent 55%),
+    linear-gradient(163deg, var(--paper) 0%, var(--paper-2) 100%);
+}
+html[data-theme="dark"] body::after { opacity: .14; mix-blend-mode: overlay; }
+html[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, rgba(42,26,38,.85), rgba(28,16,25,.7)); }
+html[data-theme="dark"] .nav-item.active {
+  background: linear-gradient(120deg, rgba(50,32,46,.98), rgba(42,26,38,.88)); }
+html[data-theme="dark"] .tile,
+html[data-theme="dark"] .lesson-hero,
+html[data-theme="dark"] .ex-wrap {
+  box-shadow: var(--sh-1), inset 0 1px 0 rgba(255,255,255,.04); }
+html[data-theme="dark"] .hero {
+  background:
+    radial-gradient(150% 130% at 88% -25%, rgba(240,180,40,.32), transparent 50%),
+    radial-gradient(90% 100% at -10% 115%, rgba(110,168,254,.2), transparent 55%),
+    linear-gradient(152deg, #b13d75 0%, #3a1029 90%);
+  box-shadow: var(--sh-3);
+}
+html[data-theme="dark"] .mini-progress {
+  background:
+    radial-gradient(130% 120% at 90% -18%, rgba(247,207,107,.24), transparent 55%),
+    linear-gradient(145deg, #b13d75 0%, #3a1029 100%); }
+html[data-theme="dark"] .brand-mark {
+  background: linear-gradient(150deg, #d4568f 0%, #6d2350 100%); }
+html[data-theme="dark"] .tok-card .ways .pill {
+  background: rgba(0,0,0,.28); border-color: rgba(240,180,40,.25); }
+html[data-theme="dark"] .graph-hint { background: rgba(42,26,38,.88); }
+html[data-theme="dark"] .toast { background: #3a2334; border: 1px solid var(--line); }
+html[data-theme="dark"] .main::-webkit-scrollbar-thumb {
+  background: rgba(246,233,241,.2); background-clip: padding-box;
+  border: 3px solid transparent; }
+html[data-theme="dark"] .btn-gold { color: #241322; }
+html[data-theme="dark"] .badge-ic { color: #241322; }
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .cc-ico {
+  background: linear-gradient(135deg, #ec4899, #9c2f66); }
+html[data-theme="dark"] .ex-q .n { background: #d4568f; }
+html[data-theme="dark"] ::selection { background: rgba(244,114,182,.3); color: #fff; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -844,6 +944,95 @@ body::after {
 @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
 
 /* ============================================================
+   НЭВТРЭХ ДЭЛГЭЦ (Login)
+   ============================================================ */
+body.locked .app { filter: blur(7px) saturate(.8); pointer-events: none; user-select: none; }
+.login-screen { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  padding: 20px;
+  background:
+    radial-gradient(900px 600px at 80% -10%, rgba(245,197,24,.14), transparent 55%),
+    radial-gradient(700px 500px at -5% 105%, rgba(59,130,246,.1), transparent 55%),
+    linear-gradient(160deg, rgba(241,114,171,.35), rgba(165,42,99,.45));
+  backdrop-filter: blur(4px);
+  animation: fadeUp .4s var(--ease);
+}
+html[data-theme="dark"] .login-screen {
+  background:
+    radial-gradient(900px 600px at 80% -10%, rgba(240,180,40,.1), transparent 55%),
+    linear-gradient(160deg, rgba(58,16,41,.75), rgba(28,16,25,.85));
+}
+.login-card { width: 100%; max-width: 400px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r-xl); padding: 32px 30px;
+  box-shadow: var(--sh-3); }
+.login-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.login-title { font-family: var(--serif); font-size: 26px; font-weight: 700;
+  color: var(--lapis-deep); line-height: 1.1; }
+.login-sub { font-size: 12.5px; color: var(--ink-soft); }
+.login-hint { font-size: 13.5px; color: var(--ink-2); margin-bottom: 12px; }
+.login-personas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.persona { display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 16px 10px; border: 1.5px solid var(--line); border-radius: 16px;
+  background: var(--card-2); cursor: pointer; transition: all .22s var(--ease);
+  font-family: var(--sans); }
+.persona:hover { transform: translateY(-2px); border-color: var(--lapis); }
+.persona.active { border-color: var(--lapis); background: var(--lapis-glow);
+  box-shadow: 0 0 0 3px var(--lapis-glow); }
+.persona .p-glyph { width: 40px; height: 40px; display: grid; place-items: center;
+  font-family: var(--cjk-serif); font-size: 21px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--lapis), var(--lapis-deep)); border-radius: 13px; }
+.persona .p-glyph svg { width: 19px; height: 19px; }
+html[data-theme="dark"] .persona .p-glyph {
+  background: linear-gradient(135deg, #ec4899, #9c2f66); }
+.persona .p-name { font-family: var(--serif); font-size: 16px; font-weight: 700;
+  color: var(--lapis-deep); }
+.persona .p-role { font-size: 11.5px; color: var(--ink-soft); }
+.login-card input { width: 100%; border: 1.5px solid var(--line); border-radius: 13px;
+  padding: 12px 15px; font-family: var(--sans); font-size: 14.5px; color: var(--ink);
+  background: var(--card-2); margin-bottom: 12px; outline: none; }
+.login-card input:focus { border-color: var(--lapis); }
+.login-foot { margin-top: 14px; font-size: 11.5px; color: var(--ink-soft);
+  text-align: center; line-height: 1.5; }
+
+/* ============================================================
+   SIDE TOOLS — хэрэглэгч · theme · гарах
+   ============================================================ */
+.side-tools { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 0 2px; }
+.user-chip { flex: 1; display: flex; align-items: center; gap: 9px; min-width: 0; }
+.u-ava { width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  font-family: var(--cjk-serif); font-size: 15px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--lapis), var(--lapis-deep)); border-radius: 10px; }
+html[data-theme="dark"] .u-ava { background: linear-gradient(135deg, #ec4899, #9c2f66); }
+.u-ava svg { width: 15px; height: 15px; }
+.u-name { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.15;
+  display: flex; flex-direction: column; overflow: hidden; }
+.u-name small { font-size: 10.5px; font-weight: 500; color: var(--ink-soft); }
+.tool-btn { width: 34px; height: 34px; flex: none; border-radius: 11px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-2);
+  display: grid; place-items: center; cursor: pointer; transition: all .2s var(--ease); }
+.tool-btn svg { width: 16px; height: 16px; }
+.tool-btn:hover { color: var(--lapis); border-color: var(--lapis); transform: translateY(-1px); }
+
+/* ============================================================
+   СУРГАЛТЫН БАГЦЫН КАТАЛОГ (Obama Room)
+   ============================================================ */
+.pack-catalog { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pack-card { display: flex; gap: 15px; align-items: flex-start; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px;
+  box-shadow: var(--sh-1); transition: all .25s var(--ease); }
+.pack-card:hover { transform: translateY(-2px); box-shadow: var(--sh-2);
+  border-color: rgba(224,165,0,.4); }
+.pack-card.done { border-color: rgba(31,157,99,.35); }
+.pk-ico { width: 44px; height: 44px; flex: none; border-radius: 13px; display: grid;
+  place-items: center; background: var(--gold-glow); color: var(--gold); }
+.pk-ico svg { width: 21px; height: 21px; }
+.pk-main { flex: 1; min-width: 0; }
+.pk-title { font-family: var(--serif); font-size: 16.5px; font-weight: 700;
+  color: var(--lapis-deep); line-height: 1.25; }
+.pk-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; font-family: var(--cjk); }
+.pk-meta { display: flex; gap: 9px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+.pk-act { display: flex; flex-direction: column; gap: 8px; flex: none; }
+
+/* ============================================================
    EMPTY · MISC · RESPONSIVE
    ============================================================ */
 .hidden { display: none !important; }
@@ -879,6 +1068,8 @@ body::after {
   .match-item { flex-direction: column; align-items: stretch; gap: 8px; }
   .match-item select { max-width: 100%; }
   .compose-fields .row2 { grid-template-columns: 1fr; }
+  .pack-catalog { grid-template-columns: 1fr; }
+  .login-personas { grid-template-columns: 1fr; }
 }
 
 .menu-btn { display: none; position: fixed; top: 18px; left: 18px; z-index: 60;

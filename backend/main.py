@@ -8,13 +8,18 @@ Python 3.14 · FastAPI
     uvicorn backend.main:app --reload
 Дараа нь http://127.0.0.1:8000 хаягаар нээнэ.
 """
-import uuid
+import hashlib
+import hmac
+import os
 import re
+import secrets
+import time
+import uuid
 from datetime import date
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -27,6 +32,105 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 app = FastAPI(title="Oyu · Суралцах орон зай", version="1.0.0")
 
 db.init_db()
+
+
+# ================================ Нэвтрэлт ================================
+# Хоёр хэрэглэгч: Оюу (суралцагч) ба Обама (мэнтор).
+# Нууц үгийг орчны хувьсагчаар солино: OYU_PASSWORD, OBAMA_PASSWORD.
+# Session = HMAC-гаар гарын үсэг зурсан күүки (30 хоног).
+
+USERS = {
+    "oyu":   {"name": "Оюу",   "role": "student",
+              "password": os.environ.get("OYU_PASSWORD", "oyu123")},
+    "obama": {"name": "Обама", "role": "mentor",
+              "password": os.environ.get("OBAMA_PASSWORD", "obama123")},
+}
+
+_SECRET_FILE = db.DATA_DIR / "secret.key"
+
+
+def _secret() -> bytes:
+    env = os.environ.get("OYU_SECRET")
+    if env:
+        return env.encode()
+    if _SECRET_FILE.exists():
+        return _SECRET_FILE.read_bytes()
+    s = secrets.token_bytes(32)
+    _SECRET_FILE.write_bytes(s)
+    return s
+
+
+SECRET = _secret()
+SESSION_DAYS = 30
+
+
+def _sign(payload: str) -> str:
+    return hmac.new(SECRET, payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _make_token(username: str) -> str:
+    exp = int(time.time()) + 60 * 60 * 24 * SESSION_DAYS
+    payload = f"{username}.{exp}"
+    return f"{payload}.{_sign(payload)}"
+
+
+def _session_user(request: Request):
+    tok = request.cookies.get("oyu_session")
+    if not tok:
+        return None
+    payload, _, sig = tok.rpartition(".")
+    if not payload or not hmac.compare_digest(_sign(payload), sig):
+        return None
+    username, _, exp = payload.partition(".")
+    if username not in USERS or not exp.isdigit() or int(exp) < time.time():
+        return None
+    u = USERS[username]
+    return {"username": username, "name": u["name"], "role": u["role"]}
+
+
+_PUBLIC_API = {"/api/health", "/api/auth/login", "/api/auth/logout", "/api/auth/me"}
+
+
+@app.middleware("http")
+async def auth_guard(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api") and path not in _PUBLIC_API:
+        user = _session_user(request)
+        if not user:
+            return JSONResponse({"detail": "Нэвтрээгүй байна"}, status_code=401)
+        request.state.user = user
+    return await call_next(request)
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login")
+def auth_login(body: LoginIn, response: Response):
+    u = USERS.get(body.username)
+    if not u or not hmac.compare_digest(u["password"], body.password):
+        raise HTTPException(401, "Нэвтрэх нэр эсвэл нууц үг буруу байна")
+    response.set_cookie(
+        "oyu_session", _make_token(body.username),
+        max_age=60 * 60 * 24 * SESSION_DAYS, httponly=True, samesite="lax",
+    )
+    return {"username": body.username, "name": u["name"], "role": u["role"]}
+
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie("oyu_session")
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    user = _session_user(request)
+    if not user:
+        raise HTTPException(401, "Нэвтрээгүй байна")
+    return user
 
 
 # =============================== API загварууд ==============================
@@ -306,7 +410,9 @@ def obama_unread():
 
 
 @app.post("/api/obama")
-def obama_create(item: ObamaItemIn):
+def obama_create(item: ObamaItemIn, request: Request):
+    if request.state.user["role"] != "mentor":
+        raise HTTPException(403, "Зөвхөн мэнтор нэмнэ")
     if item.type not in ("reading", "task", "note", "pack"):
         raise HTTPException(400, "Буруу төрөл")
     pack_id = None
@@ -341,7 +447,9 @@ def obama_done(item_id: int):
 
 
 @app.delete("/api/obama/{item_id}")
-def obama_delete(item_id: int):
+def obama_delete(item_id: int, request: Request):
+    if request.state.user["role"] != "mentor":
+        raise HTTPException(403, "Зөвхөн мэнтор устгана")
     db.delete_obama_item(item_id)
     return {"ok": True}
 

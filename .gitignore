@@ -6,6 +6,7 @@ venv/
 
 # App data (runtime)
 data/oyu.db
+data/secret.key
 data/uploads/*
 !data/uploads/.gitkeep
 

@@ -4,7 +4,7 @@
    ============================================================ */
 
 const state = { progress: null, answers: {}, graph: null, graphRoom: 'law', graphMode: '3d',
-  obamaUnread: 0, obamaComposeType: 'reading', obamaJustCreated: new Set() };
+  obamaUnread: 0, obamaComposeType: 'reading', obamaJustCreated: new Set(), user: null };
 const view = document.getElementById('view');
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -110,13 +110,114 @@ function ring(pct, color, size = 66) {
   const r = size / 2 - 6, c = 2 * Math.PI * r;
   const off = c - (pct / 100) * c;
   return `<svg class="result-ring" viewBox="0 0 ${size} ${size}">
-    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(53,31,46,.1)" stroke-width="6"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--fill-2)" stroke-width="6"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
       stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"
       transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset 1s var(--ease)"/>
     <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle"
-      font-family="Playfair Display" font-weight="700" font-size="${size/3.6}" fill="#a52a63">${pct}%</text>
+      font-family="Playfair Display" font-weight="700" font-size="${size/3.6}"
+      fill="var(--lapis-deep)">${pct}%</text>
   </svg>`;
+}
+
+/* ============================================================
+   THEME — гэрэлт / харанхуй
+   ============================================================ */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('oyu-theme', t);
+  window.dispatchEvent(new Event('themechange'));
+  renderSideTools();
+}
+
+/* ============================================================
+   НЭВТРЭЛТ (Login)
+   ============================================================ */
+function showLogin() {
+  if (document.getElementById('loginScreen')) return;
+  document.body.classList.add('locked');
+  const div = document.createElement('div');
+  div.className = 'login-screen';
+  div.id = 'loginScreen';
+  div.innerHTML = `
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="brand-mark">奥</div>
+        <div><div class="login-title">Oyu</div>
+        <div class="login-sub">Суралцах орон зай</div></div>
+      </div>
+      <p class="login-hint">Хэн нэвтэрч байна вэ?</p>
+      <div class="login-personas">
+        <button class="persona" data-u="oyu">
+          <span class="p-glyph">学</span>
+          <span class="p-name">Оюу</span>
+          <span class="p-role">Суралцагч</span>
+        </button>
+        <button class="persona" data-u="obama">
+          <span class="p-glyph">${icon('briefcase')}</span>
+          <span class="p-name">Обама</span>
+          <span class="p-role">Мэнтор</span>
+        </button>
+      </div>
+      <input type="password" id="loginPass" placeholder="Нууц үг…" autocomplete="current-password">
+      <button class="btn btn-primary" id="loginBtn" style="width:100%">${icon('arrowRight')} Нэвтрэх</button>
+      <div class="login-foot">Нууц үгээ мартсан бол серверийн OYU_PASSWORD / OBAMA_PASSWORD
+        орчны хувьсагчийг шалгаарай.</div>
+    </div>`;
+  document.body.appendChild(div);
+
+  let picked = 'oyu';
+  const personas = div.querySelectorAll('.persona');
+  personas[0].classList.add('active');
+  personas.forEach(p => p.onclick = () => {
+    picked = p.dataset.u;
+    personas.forEach(x => x.classList.toggle('active', x === p));
+    div.querySelector('#loginPass').focus();
+  });
+  const doLogin = async () => {
+    const pass = div.querySelector('#loginPass').value;
+    if (!pass) { toast('Нууц үгээ оруулна уу', 'x'); return; }
+    try {
+      const u = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: picked, password: pass }),
+      });
+      if (!u.ok) { toast('Нууц үг буруу байна', 'x'); return; }
+      state.user = await u.json();
+      hideLogin();
+      initApp();
+    } catch (e) { toast('Холболтын алдаа', 'x'); }
+  };
+  div.querySelector('#loginBtn').onclick = doLogin;
+  div.querySelector('#loginPass').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+}
+
+function hideLogin() {
+  document.body.classList.remove('locked');
+  document.getElementById('loginScreen')?.remove();
+}
+
+function renderSideTools() {
+  const el = document.getElementById('sideTools');
+  if (!el) return;
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const u = state.user;
+  el.innerHTML = `
+    ${u ? `<div class="user-chip">
+      <span class="u-ava">${u.role === 'mentor' ? icon('briefcase') : '学'}</span>
+      <span class="u-name">${esc(u.name)}<small>${u.role === 'mentor' ? 'Мэнтор' : 'Суралцагч'}</small></span>
+    </div>` : ''}
+    <button class="tool-btn" id="themeBtn" title="${dark ? 'Гэрэлт горим' : 'Харанхуй горим'}">
+      ${icon(dark ? 'sun' : 'moon')}</button>
+    ${u ? `<button class="tool-btn" id="logoutBtn" title="Гарах">${icon('logout')}</button>` : ''}`;
+  $('#themeBtn').onclick = () => applyTheme(dark ? 'light' : 'dark');
+  const lb = $('#logoutBtn');
+  if (lb) lb.onclick = async () => {
+    await API.logout();
+    state.user = null;
+    location.hash = '';
+    showLogin();
+  };
 }
 
 /* ------------------------------- navigation ------------------------------- */
@@ -831,19 +932,70 @@ const OBAMA_TYPES = {
   note:    { label: 'Тэмдэглэл', icon: 'bell' },
 };
 
+const PACK_ICONS = {
+  'pack-blockchain': 'cube', 'pack-startup-vc': 'flame', 'pack-ip': 'bulb',
+  'pack-privacy': 'users', 'pack-ma': 'chart',
+};
+
 async function obamaView() {
-  const [items, packs] = await Promise.all([API.obamaList(), API.packs()]);
+  const isMentor = state.user?.role === 'mentor';
+  const [items, packs, prog] = await Promise.all([
+    API.obamaList(), API.packs(), API.progress()]);
+  const packDone = Object.fromEntries(
+    (prog.progress || []).filter(p => p.room === 'pack').map(p => [p.lesson_id, p]));
+  const assignedIds = new Set(items.filter(i => i.type === 'pack').map(i => i.pack_id));
+
+  const catalogHtml = packs.map(p => {
+    const d = packDone[p.id];
+    const assigned = assignedIds.has(p.id);
+    return `<div class="pack-card ${d ? 'done' : ''}">
+      <div class="pk-ico">${icon(PACK_ICONS[p.id] || 'book')}</div>
+      <div class="pk-main">
+        <div class="pk-title">${esc(p.title)}</div>
+        <div class="pk-sub">${cjk(esc(p.subtitle))}</div>
+        <div class="pk-meta">
+          <span class="level-pill lv${p.level}">${LEVELS[p.level]}</span>
+          <span class="mini-stat">${icon('clock')} ${p.duration} мин</span>
+          <span class="mini-stat">${icon('feather')} ${p.exercises} дасгал</span>
+          <span class="mini-stat">${icon('star')} ${p.xp} XP</span>
+          ${d ? `<span class="pill" style="background:var(--ok-bg);color:var(--ok)">
+            ${icon('check')} ${d.score}/${d.total}</span>` : ''}
+          ${assigned && !d ? `<span class="pill audio-tag">${icon('bell')} Оноогдсон</span>` : ''}
+        </div>
+      </div>
+      <div class="pk-act">
+        <a class="btn btn-ghost btn-sm" href="#/lesson/${esc(p.id)}">${d ? 'Дахин үзэх' : 'Нээх'}</a>
+        ${isMentor ? `<button class="btn btn-gold btn-sm" data-assign="${esc(p.id)}"
+          data-title="${esc(p.title)}">${icon('bell')} Оноох</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 
   view.innerHTML = `
   <div class="page-head">
     <div class="eyebrow">${icon('briefcase')} Мэнторын өрөө</div>
     <h1 class="page-title">Obama <span class="accent">Room</span></h1>
-    <p class="page-sub">Энд Обама уншлага, даалгавар, сургалтын багц нэмнэ — та тэдгээрийг
-      мэдэгдлээр хүлээн авна. Багцыг нээж суралцаад дасгалаа өгөхөд дүн тань энд харагдана.</p>
+    <p class="page-sub">${isMentor
+      ? 'Оюуд уншлага, даалгавар, сургалтын багц оноож, дүнг нь эндээс хянана.'
+      : 'Обама танд уншлага, даалгавар, сургалтын багц илгээнэ — мэдэгдлээр ирнэ. ' +
+        'Багцын дасгалаа өгөхөд дүн тань Обамад харагдана.'}</p>
   </div>
 
+  <div class="section-head">
+    <div class="flag">${icon('book')}</div>
+    <div><h3>Сургалтын багцууд</h3>
+      <div class="note">Блокчэйн · Стартап · Оюуны өмч · Мэдээлэл · M&A — бизнесийн хуульчийн цөм</div></div>
+    <div class="line"></div>
+  </div>
+  <div class="pack-catalog stagger">${catalogHtml}</div>
+
+  ${isMentor ? `
+  <div class="section-head mt-lg">
+    <div class="flag">${icon('plus')}</div>
+    <div><h3>Шинэ зүйл нэмэх</h3><div class="note">Оноосон зүйл бүр Оюуд мэдэгдэл болж очно</div></div>
+    <div class="line"></div>
+  </div>
   <div class="compose-panel">
-    <h3>${icon('plus')} Шинэ зүйл нэмэх</h3>
     <div class="type-seg" id="obamaTypeSeg">
       ${Object.entries(OBAMA_TYPES).map(([k, v]) => `
         <button data-t="${k}" class="t-${k} ${state.obamaComposeType === k ? 'active' : ''}">
@@ -873,23 +1025,39 @@ async function obamaView() {
     <div class="compose-foot">
       <button class="btn btn-primary" id="obamaSubmit">${icon('bell')} Нэмээд мэдэгдэх</button>
     </div>
+  </div>` : ''}
+
+  <div class="section-head mt-lg">
+    <div class="flag">${icon('inbox')}</div>
+    <div><h3>${isMentor ? 'Оноогдсон зүйлс' : 'Танд ирсэн зүйлс'}</h3>
+      <div class="note">${isMentor ? 'Дүн, гүйцэтгэл эндээс харагдана' : 'Шинэ зүйл алтан хүрээтэй'}</div></div>
+    <div class="line"></div>
   </div>
-
   <div id="obamaFeed">${items.length ? items.map(obamaCard).join('')
-    : `<div class="empty">${icon('inbox')}<p>Одоогоор зүйл алга. Дээрх маягтаар эхнийхээ нэмээрэй.</p></div>`}</div>`;
+    : `<div class="empty">${icon('inbox')}<p>${isMentor
+        ? 'Одоогоор юу ч оноогоогүй байна. Дээрх багцаас «Оноох» дарж эхлээрэй.'
+        : 'Одоогоор танд ирсэн зүйл алга — Обама удахгүй илгээнэ!'}</p></div>`}</div>`;
 
-  wireObamaCompose(packs);
+  // Каталогийн «Оноох» товч (мэнтор)
+  $$('[data-assign]').forEach(b => b.onclick = async () => {
+    const res = await API.obamaCreate({ type: 'pack', title: b.dataset.title,
+      body: '', pack_id: b.dataset.assign });
+    if (res && res.id) state.obamaJustCreated.add(res.id);
+    toast('Багц оноогдлоо — Оюуд мэдэгдэл очлоо', 'bell');
+    obamaView();
+  });
+
+  if (isMentor) wireObamaCompose(packs);
   wireObamaFeed();
 
-  // Feed-ийг үзсэнээр unread-г арилгана (inbox семантик).
-  // Саяхан энэ дэлгэцээс өөрөө нэмсэн зүйлийг "уншсан" болгохгүй —
-  // тэгэхгүй бол Оюу мэдэгдлээ огт харахгүй байх байсан.
-  const toRead = items.filter(i => !i.read && !state.obamaJustCreated.has(i.id));
-  if (toRead.length) {
-    await Promise.all(toRead.map(i => API.obamaRead(i.id)));
+  // Feed-ийг үзсэнээр unread арилна — гэхдээ зөвхөн СУРАЛЦАГЧ үзэхэд.
+  // (Мэдэгдэл Оюугийнх; мэнтор өөрийн оноосноо уншсан болгох ёсгүй.)
+  if (!isMentor) {
+    const toRead = items.filter(i => !i.read);
+    if (toRead.length) await Promise.all(toRead.map(i => API.obamaRead(i.id)));
+    state.obamaUnread = 0;
+    renderNav();
   }
-  state.obamaUnread = items.filter(i => !i.read && state.obamaJustCreated.has(i.id)).length;
-  renderNav();
 }
 
 function obamaCard(it) {
@@ -928,7 +1096,8 @@ function obamaCard(it) {
         <span style="font-size:11.5px;color:var(--ink-soft)">${new Date(it.created_at).toLocaleString('mn-MN')}</span>
       </div>
     </div>
-    <div class="memo-act"><button class="icon-btn danger" data-delobama="${it.id}">${icon('trash')}</button></div>
+    <div class="memo-act">${state.user?.role === 'mentor'
+      ? `<button class="icon-btn danger" data-delobama="${it.id}">${icon('trash')}</button>` : ''}</div>
   </div>`;
 }
 
@@ -1038,12 +1207,24 @@ menuBtn.onclick = () => document.getElementById('sidebar').classList.toggle('ope
 document.body.appendChild(menuBtn);
 
 window.addEventListener('hashchange', router);
-(async () => {
+
+async function initApp() {
+  renderSideTools();
   try {
     syncProgress(await API.progress());
-    if (state.obamaUnread > 0 && location.hash.replace(/^#\//, '') !== 'obama') {
+    if (state.obamaUnread > 0 && state.user?.role === 'student'
+        && location.hash.replace(/^#\//, '') !== 'obama') {
       setTimeout(() => toast(`Obama Room-д ${state.obamaUnread} шинэ зүйл ирлээ`, 'bell'), 500);
     }
   } catch (e) {}
   router();
+}
+
+(async () => {
+  API.onUnauthorized = showLogin;
+  renderSideTools();
+  try {
+    state.user = await API.me();
+    initApp();
+  } catch (e) { /* 401 → showLogin аль хэдийн дуудагдсан */ }
 })();

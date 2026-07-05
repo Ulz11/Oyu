@@ -1,19 +1,30 @@
 /* Oyu · API client */
 const API = {
-  async _get(url) {
-    const r = await fetch(url);
+  onUnauthorized: null,   // app.js оноож өгнө — 401 ирвэл нэвтрэх дэлгэц рүү
+
+  async _check(r) {
+    if (r.status === 401 && API.onUnauthorized) {
+      API.onUnauthorized();
+      throw new Error('unauthorized');
+    }
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   },
+  async _get(url) {
+    return API._check(await fetch(url));
+  },
   async _post(url, body) {
-    const r = await fetch(url, {
+    return API._check(await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+    }));
   },
+
+  login:  (username, password) => API._post('/api/auth/login', { username, password }),
+  logout: () => fetch('/api/auth/logout', { method: 'POST' }).then(r => r.json()),
+  me:     () => API._get('/api/auth/me'),
+
   rooms:      () => API._get('/api/rooms'),
   room:       (id) => API._get(`/api/rooms/${id}`),
   lesson:     (id) => API._get(`/api/lessons/${id}`),
@@ -27,21 +38,19 @@ const API = {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('room', room);
-    const r = await fetch('/api/files', { method: 'POST', body: fd });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+    return API._check(await fetch('/api/files', { method: 'POST', body: fd }));
   },
-  deleteFile: (id) => fetch(`/api/files/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  deleteFile: (id) => fetch(`/api/files/${id}`, { method: 'DELETE' }).then(r => API._check(r)),
   notes:      () => API._get('/api/notes'),
   saveNote:   (note) => API._post('/api/notes', note),
-  deleteNote: (id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  deleteNote: (id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }).then(r => API._check(r)),
 
   packs:       () => API._get('/api/packs'),
   obamaList:   () => API._get('/api/obama'),
   obamaUnread: () => API._get('/api/obama/unread'),
   obamaCreate: (item) => API._post('/api/obama', item),
-  obamaReadAll: () => fetch('/api/obama/read-all', { method: 'POST' }).then(r => r.json()),
-  obamaRead:   (id) => fetch(`/api/obama/${id}/read`, { method: 'POST' }).then(r => r.json()),
-  obamaDone:   (id) => fetch(`/api/obama/${id}/done`, { method: 'POST' }).then(r => r.json()),
-  obamaDelete: (id) => fetch(`/api/obama/${id}`, { method: 'DELETE' }).then(r => r.json()),
+  obamaReadAll: () => fetch('/api/obama/read-all', { method: 'POST' }).then(r => API._check(r)),
+  obamaRead:   (id) => fetch(`/api/obama/${id}/read`, { method: 'POST' }).then(r => API._check(r)),
+  obamaDone:   (id) => fetch(`/api/obama/${id}/done`, { method: 'POST' }).then(r => API._check(r)),
+  obamaDelete: (id) => fetch(`/api/obama/${id}`, { method: 'DELETE' }).then(r => API._check(r)),
 };
