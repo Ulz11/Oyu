@@ -49,12 +49,13 @@ class NoteIn(BaseModel):
 
 
 class ObamaItemIn(BaseModel):
-    type: str = "note"          # reading | task | note
+    type: str = "note"          # reading | task | note | pack
     title: str
     body: str = ""
     link: str | None = None
     due_date: str | None = None
     priority: str = "normal"    # low | normal | high
+    pack_id: str | None = None  # type == "pack" үед сургалтын багцын id
 
 
 # ============================== Агуулгын API ===============================
@@ -96,22 +97,22 @@ def room_detail(room_id: str):
                      "questions": len(C.EXAMS[room_id]["questions"])}}
 
 
+def _safe_exercise(e: dict) -> dict:
+    """Дасгалын хариуг нуусан хувилбар — match-ийн pairs-ийг left/right болгоно."""
+    item = {k: v for k, v in e.items() if k not in ("answer",)}
+    if e["type"] == "match":
+        item["left"] = [p["a"] for p in e["pairs"]]
+        item["right"] = sorted([p["b"] for p in e["pairs"]])
+        item.pop("pairs", None)
+    return item
+
+
 @app.get("/api/lessons/{lesson_id}")
 def lesson_detail(lesson_id: str):
     lesson = C.get_lesson(lesson_id)
     if not lesson:
         raise HTTPException(404, "Хичээл олдсонгүй")
-    # Дасгалын хариуг нуулгүй илгээхгүй — зөвхөн prompt/options
-    safe_ex = []
-    for e in lesson.get("exercises", []):
-        item = {k: v for k, v in e.items() if k not in ("answer",)}
-        if e["type"] == "match":
-            # холих: b утгуудыг тусад нь өгнө
-            item["left"] = [p["a"] for p in e["pairs"]]
-            item["right"] = sorted([p["b"] for p in e["pairs"]])
-            item.pop("pairs", None)
-        safe_ex.append(item)
-    return {**lesson, "exercises": safe_ex}
+    return {**lesson, "exercises": [_safe_exercise(e) for e in lesson.get("exercises", [])]}
 
 
 @app.post("/api/exercises/submit")
@@ -137,6 +138,9 @@ def submit_exercises(payload: ExerciseSubmit):
     perfect = 1 if total and correct == total else 0
     xp = round(lesson["xp"] * (correct / total)) if total else 0
     db.save_progress(payload.lesson_id, lesson["room"], correct, total, xp, perfect)
+    if lesson["room"] == "pack":
+        # Обамагийн оноосон багцын үр дүнг картад нь автоматаар холбоно
+        db.record_pack_result(payload.lesson_id, correct, total)
     return {"score": correct, "total": total, "xp": xp,
             "perfect": bool(perfect), "results": results}
 
@@ -146,8 +150,7 @@ def get_exam(room_id: str):
     exam = C.EXAMS.get(room_id)
     if not exam:
         raise HTTPException(404, "Шалгалт олдсонгүй")
-    safe_q = [{k: v for k, v in q.items() if k != "answer"} for q in exam["questions"]]
-    return {**exam, "questions": safe_q}
+    return {**exam, "questions": [_safe_exercise(q) for q in exam["questions"]]}
 
 
 @app.post("/api/exam/submit")
@@ -162,8 +165,12 @@ def submit_exam(payload: ExamSubmit):
         ok = _grade(q, given)
         if ok:
             correct += 1
-        results[q["id"]] = {"correct": ok, "answer": q.get("answer"),
-                            "explain": q.get("explain", "")}
+        results[q["id"]] = {
+            "correct": ok,
+            "answer": q.get("answer") if q["type"] != "match" else
+                      {p["a"]: p["b"] for p in q["pairs"]},
+            "explain": q.get("explain", ""),
+        }
     total = len(exam["questions"])
     pct = round(correct / total * 100) if total else 0
     passed = pct >= exam["pass"]
@@ -180,6 +187,12 @@ def get_graph(room_id: str):
     return g
 
 
+@app.get("/api/packs")
+def packs_catalog():
+    """Обамагийн оноож болох сургалтын багцуудын каталог."""
+    return [C.lesson_summary(p) for p in C.TRAINING_PACKS]
+
+
 @app.get("/api/progress")
 def progress():
     prog, exams = db.get_progress()
@@ -191,13 +204,15 @@ def progress():
     bizcn_done = sum(1 for p in prog if p["lesson_id"].startswith("cn-b"))
     cases_done = sum(1 for p in prog if p["lesson_id"].startswith("case-"))
     cn_adv_done = sum(1 for p in prog if p["lesson_id"].startswith("cn-adv"))
+    packs_done = sum(1 for p in prog if p["room"] == "pack")
     perfect = sum(1 for p in prog if p["perfect"])
     exams_passed = sum(1 for e in exams if e["passed"])
     obama_tasks_done = db.done_obama_tasks_count()
 
     stats = {"lessons": lessons_done, "chinese": chinese_done, "law": law_done,
              "intl": intl_done, "bizcn": bizcn_done, "cases": cases_done,
-             "cn_adv": cn_adv_done, "perfect": perfect, "exams": exams_passed,
+             "cn_adv": cn_adv_done, "packs": packs_done,
+             "perfect": perfect, "exams": exams_passed,
              "obama_tasks": obama_tasks_done}
     earned = [b for b in C.BADGES if _badge_ok(b["rule"], stats)]
 
@@ -292,10 +307,16 @@ def obama_unread():
 
 @app.post("/api/obama")
 def obama_create(item: ObamaItemIn):
-    if item.type not in ("reading", "task", "note"):
+    if item.type not in ("reading", "task", "note", "pack"):
         raise HTTPException(400, "Буруу төрөл")
+    pack_id = None
+    if item.type == "pack":
+        pack = C.get_lesson(item.pack_id or "")
+        if not pack or pack.get("room") != "pack":
+            raise HTTPException(400, "Сургалтын багц олдсонгүй")
+        pack_id = pack["id"]
     iid = db.add_obama_item(item.type, item.title, item.body, item.link,
-                             item.due_date, item.priority)
+                             item.due_date, item.priority, pack_id)
     return {"id": iid}
 
 

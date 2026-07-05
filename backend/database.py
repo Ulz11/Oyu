@@ -71,10 +71,18 @@ def init_db() -> None:
                 priority    TEXT DEFAULT 'normal',
                 done        INTEGER DEFAULT 0,
                 read        INTEGER DEFAULT 0,
-                created_at  TEXT
+                created_at  TEXT,
+                pack_id     TEXT,
+                score       INTEGER,
+                total       INTEGER
             );
             """
         )
+        # Хуучин өгөгдлийн сан руу шинэ баганууд нэмэх (idempotent миграци)
+        cols = {r[1] for r in c.execute("PRAGMA table_info(obama_items)")}
+        for name, ddl in (("pack_id", "TEXT"), ("score", "INTEGER"), ("total", "INTEGER")):
+            if name not in cols:
+                c.execute(f"ALTER TABLE obama_items ADD COLUMN {name} {ddl}")
 
 
 # ----------------------------- Явц (Progress) ------------------------------
@@ -183,15 +191,26 @@ def delete_note(note_id):
 
 # --------------------------- Obama Room (даалгавар) -------------------------
 
-def add_obama_item(item_type, title, body, link, due_date, priority):
+def add_obama_item(item_type, title, body, link, due_date, priority, pack_id=None):
     with connect() as c:
         cur = c.execute(
             """INSERT INTO obama_items
-               (type, title, body, link, due_date, priority, done, read, created_at)
-               VALUES (?,?,?,?,?,?,0,0,?)""",
-            (item_type, title, body, link, due_date, priority, _now()),
+               (type, title, body, link, due_date, priority, done, read, created_at, pack_id)
+               VALUES (?,?,?,?,?,?,0,0,?,?)""",
+            (item_type, title, body, link, due_date, priority, _now(), pack_id),
         )
         return cur.lastrowid
+
+
+def record_pack_result(pack_id, score, total):
+    """Багц дууссаны дараа холбогдох бүх картад оноог (хамгийн сайн) бичнэ."""
+    with connect() as c:
+        c.execute(
+            """UPDATE obama_items
+               SET score = MAX(COALESCE(score, 0), ?), total = ?, done = 1
+               WHERE pack_id = ?""",
+            (score, total, pack_id),
+        )
 
 
 def list_obama_items():

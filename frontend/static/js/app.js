@@ -4,14 +4,15 @@
    ============================================================ */
 
 const state = { progress: null, answers: {}, graph: null, graphRoom: 'law', graphMode: '3d',
-  obamaUnread: 0, obamaComposeType: 'reading' };
+  obamaUnread: 0, obamaComposeType: 'reading', obamaJustCreated: new Set() };
 const view = document.getElementById('view');
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 const ROOM_META = {
-  law:     { icon: 'scale',    accent: 'lapis', glyph: '法' },
-  chinese: { icon: 'language', accent: 'verm',  glyph: '中' },
+  law:     { icon: 'scale',     accent: 'lapis', glyph: '法' },
+  chinese: { icon: 'language',  accent: 'verm',  glyph: '中' },
+  pack:    { icon: 'briefcase', accent: 'gold',  glyph: '律' },
 };
 const LEVELS = { 1: 'Анхан', 2: 'Дунд', 3: 'Гүнзгий' };
 
@@ -31,7 +32,11 @@ const Voice = {
       (v.lang === 'zh-CN' ? 1 : 0);
     const pick = () => {
       const vs = speechSynthesis.getVoices().filter(v => /^zh([-_]|$)/i.test(v.lang));
-      if (vs.length) { Voice.zh = vs.sort((a, b) => rank(b) - rank(a))[0]; Voice.ready = true; }
+      if (vs.length) {
+        Voice.zh = vs.sort((a, b) => rank(b) - rank(a))[0];
+        Voice.ready = true;
+        Voice.warned = false; // дуу хоолой олдвол анхааруулгыг дахин идэвхжүүлнэ
+      }
     };
     pick();
     speechSynthesis.addEventListener('voiceschanged', pick);
@@ -153,6 +158,14 @@ function renderMiniProgress() {
     <div class="mp-bar"><i style="width:${pct}%"></i></div>`;
 }
 
+/* Явцын нэг эх сурвалж: progress татах бүрд unread badge-ийг ч шинэчилнэ */
+function syncProgress(prog) {
+  state.progress = prog;
+  if (typeof prog.obamaUnread === 'number') state.obamaUnread = prog.obamaUnread;
+  renderMiniProgress();
+  renderNav();
+}
+
 /* ================================ ROUTER ================================= */
 async function router() {
   const raw = location.hash.replace(/^#\//, '');
@@ -184,9 +197,10 @@ async function router() {
 
 /* =============================== DASHBOARD =============================== */
 async function dashboard() {
-  const [rooms, prog] = await Promise.all([API.rooms(), API.progress()]);
-  state.progress = prog;
-  renderMiniProgress();
+  const [rooms, prog, lawD, cnD] = await Promise.all([
+    API.rooms(), API.progress(), API.room('law'), API.room('chinese')]);
+  syncProgress(prog);
+  const next = [...lawD.lessons, ...cnD.lessons].find(l => !l.done);
 
   const hour = new Date().getHours();
   const greet = hour < 5 ? 'Сайхан шөнө' : hour < 12 ? 'Өглөөний мэнд'
@@ -216,42 +230,68 @@ async function dashboard() {
     </div>`;
   }).join('');
 
+  const continueCard = next ? `
+    <div class="tile col-12 continue-card hoverable" onclick="location.hash='#/lesson/${next.id}'">
+      <div class="cc-ico">${icon('play')}</div>
+      <div class="cc-main">
+        <div class="cc-lab">Дараагийн хичээл · ${next.room === 'law' ? 'Хууль зүй' : 'Хятад хэл'}</div>
+        <div class="cc-title">${cjk(esc(next.title))}</div>
+      </div>
+      <div class="cc-meta">
+        <span class="level-pill lv${next.level}">${icon('layers')} ${LEVELS[next.level]}</span>
+        <span class="mini-stat">${icon('clock')} ${next.duration} мин</span>
+        <span class="mini-stat">${icon('star')} ${next.xp} XP</span>
+      </div>
+      <span class="btn btn-primary btn-sm">Эхлэх ${icon('arrowRight')}</span>
+    </div>` : '';
+
   view.innerHTML = `
   <div class="bento stagger">
     <div class="tile hero">
       <div class="eyebrow">${greet}</div>
       <h1>Өнөөдөр <b>шүүгчийн</b> замын нэг алхмыг урагшлуулъя, Оюу.</h1>
       <p>Хууль зүй, хятад хэлээ TOK сэтгэлгээгээр гүнзгийрүүлэн судал. Мэдлэг бол шүүн тунгаах чадвар.</p>
-      <div class="hero-goal">${icon('gavel')} Зорилго: Шүүгч · Эрх зүйн 3-р курс</div>
+      <div class="hero-actions">
+        ${next ? `<span class="btn btn-gold" onclick="event.stopPropagation();location.hash='#/lesson/${next.id}'">
+          ${icon('play')} Үргэлжлүүлэх</span>` : ''}
+        <div class="hero-goal">${icon('gavel')} Зорилго: Шүүгч · Эрх зүйн 3-р курс</div>
+      </div>
       <div class="hero-proverb">「 ${esc(prog.proverb || '')} 」</div>
     </div>
 
-    <div class="tile col-4">
+    <div class="tile col-4 obama-tile ${prog.obamaUnread > 0 ? 'has-unread' : ''}">
       <div class="tile-eyebrow">${icon('briefcase','lead')}<h3>Obama Room</h3>
         ${prog.obamaUnread > 0 ? `<span class="nav-badge-dot">${prog.obamaUnread}</span>` : ''}</div>
       <p style="color:var(--ink-2);font-size:14px">${prog.obamaUnread > 0
         ? `${prog.obamaUnread} шинэ уншлага/даалгавар хүлээж байна.`
-        : 'Уншлага, даалгавар, тэмдэглэл энд ирнэ.'}</p>
+        : 'Уншлага, даалгавар, сургалтын багц энд ирнэ.'}</p>
       <div style="margin-top:14px"><span class="btn btn-gold btn-sm"
         onclick="location.hash='#/obama'">${icon('inbox')} Нээх</span></div>
     </div>
 
+    ${continueCard}
+
     ${roomTiles}
 
-    <div class="tile col-4 stat verm">
+    <div class="tile col-3 stat stat-h verm">
       <div class="ico">${icon('book')}</div>
       <div><div class="stat-num">${prog.lessonsDone}</div>
-      <div class="stat-label">Дуусгасан хичээл</div></div>
+      <div class="stat-label">Хичээл</div></div>
     </div>
-    <div class="tile col-4 stat">
+    <div class="tile col-3 stat stat-h">
       <div class="ico">${icon('target')}</div>
       <div><div class="stat-num">${prog.perfect}</div>
-      <div class="stat-label">Төгс дүнтэй дасгал</div></div>
+      <div class="stat-label">Төгс дасгал</div></div>
     </div>
-    <div class="tile col-4 stat gold">
+    <div class="tile col-3 stat stat-h gold">
       <div class="ico">${icon('gavel')}</div>
       <div><div class="stat-num">${prog.examsPassed}<small>/2</small></div>
-      <div class="stat-label">Тэнцсэн шалгалт</div></div>
+      <div class="stat-label">Шалгалт</div></div>
+    </div>
+    <div class="tile col-3 stat stat-h">
+      <div class="ico">${icon('award')}</div>
+      <div><div class="stat-num">${prog.badges.filter(b => b.earned).length}</div>
+      <div class="stat-label">Тэмдэг</div></div>
     </div>
 
     <div class="tile col-8">
@@ -389,10 +429,16 @@ async function lessonView(lessonId) {
     }
   };
 
+  const isPack = l.room === 'pack';
+  const backHref = isPack ? '#/obama' : `#/room/${l.room}`;
+  const backLabel = isPack ? 'Obama Room' : l.room === 'law' ? 'Хууль зүй' : 'Хятад хэл';
+
   view.innerHTML = `
-  <a class="back-link" href="#/room/${l.room}">${icon('arrowLeft')} ${l.room === 'law' ? 'Хууль зүй' : 'Хятад хэл'}</a>
-  <div class="lesson-hero ${isZh ? 'verm' : ''}">
+  <a class="back-link" href="${backHref}">${icon('arrowLeft')} ${backLabel}</a>
+  <div class="lesson-hero ${isZh ? 'verm' : isPack ? 'gold' : ''}">
     <span class="cjk-huge">${meta.glyph}</span>
+    ${isPack ? `<span class="pill" style="background:var(--gold-glow);color:var(--gold);margin-right:6px">
+      ${icon('briefcase')} Обамагийн багц</span>` : ''}
     <span class="level-pill lv${l.level}">${icon('layers')} ${LEVELS[l.level]} түвшин</span>
     <h1>${cjk(esc(l.title))}</h1>
     <div class="sub">${esc(l.subtitle)} ${l.tts ? speakBtn(l.tts, 'lg') : ''}</div>
@@ -447,13 +493,19 @@ function exerciseHtml(e, i) {
       <div class="tf-btn" data-v="true">${icon('check')} Үнэн</div>
       <div class="tf-btn" data-v="false">${icon('x')} Худал</div></div>`;
   } else if (e.type === 'match') {
+    // Сервер эрэмбэлж өгдөг тул хариултын дараалал таамаглагдахгүй байхаар холино
+    const right = [...e.right];
+    for (let k = right.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [right[k], right[j]] = [right[j], right[k]];
+    }
     body = `<div class="match-grid" data-ex="${e.id}">
       <div><div class="match-col-lab">Ойлголт бүрд тохирох утгыг сонго</div>
       <div class="match-left">
         ${e.left.map(a => `<div class="match-item" data-a="${esc(a)}">
           <span>${cjk(esc(a))}</span>
           <select data-a="${esc(a)}"><option value="">— сонго —</option>
-            ${e.right.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
+            ${right.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
           </select></div>`).join('')}
       </div></div></div>`;
   }
@@ -464,8 +516,8 @@ function exerciseHtml(e, i) {
   </div>`;
 }
 
-function wireExercises(lesson) {
-  const answers = state.answers;
+/* Оролтын холболт — хичээл, шалгалт хоёулаа хэрэглэнэ (mcq/listen/tf/match + аудио) */
+function wireAnswerInputs(answers) {
   $$('.opts').forEach(box => {
     const ex = box.dataset.ex;
     box.querySelectorAll('.opt').forEach(opt => {
@@ -496,6 +548,53 @@ function wireExercises(lesson) {
     });
   });
   wireSpeak();
+}
+
+/* Асуулт хариулагдсан эсэх — match бүх мөрөө сонгосон байх ёстой */
+function isAnswered(q, answers) {
+  if (q.type === 'match') {
+    const a = answers[q.id] || {};
+    return (q.left || []).every(x => a[x]);
+  }
+  return answers[q.id] !== undefined;
+}
+
+/* Нэг даалгаврын үр дүнг дэлгэцэд буулгах — хичээл, шалгалт хоёулаа хэрэглэнэ */
+function applyItemResult(e, r) {
+  const item = document.querySelector(`.ex-item[data-ex="${e.id}"]`);
+  if (!r || !item) return;
+  if (e.type === 'mcq' || e.type === 'listen') {
+    const box = item.querySelector('.opts'); box.classList.add('done');
+    box.querySelectorAll('.opt').forEach(o => {
+      o.classList.add('locked');
+      const i = +o.dataset.i;
+      if (i === r.answer) o.classList.add('correct');
+      else if (o.classList.contains('sel')) o.classList.add('wrong');
+    });
+  } else if (e.type === 'truefalse') {
+    const box = item.querySelector('.tf-row'); box.classList.add('done');
+    box.querySelectorAll('.tf-btn').forEach(b => {
+      const v = b.dataset.v === 'true';
+      if (v === r.answer) b.classList.add('correct');
+      else if (b.classList.contains('sel')) b.classList.add('wrong');
+    });
+  } else if (e.type === 'match') {
+    item.querySelectorAll('.match-item').forEach(mi => {
+      const a = mi.dataset.a;
+      const sel = mi.querySelector('select'); sel.disabled = true;
+      const truth = r.answer[a];
+      if (sel.value === truth) mi.classList.add('correct');
+      else { mi.classList.add('wrong'); sel.value = truth; }
+    });
+  }
+  const exp = document.getElementById('exp-' + e.id);
+  exp.innerHTML = `<b>${r.correct ? '✓ Зөв.' : '✕ Дахин хар.'}</b> ${cjk(esc(r.explain))}`;
+  exp.classList.add('show');
+}
+
+function wireExercises(lesson) {
+  const answers = state.answers;
+  wireAnswerInputs(answers);
 
   $('#exSubmit').onclick = async () => {
     const btn = $('#exSubmit');
@@ -503,55 +602,27 @@ function wireExercises(lesson) {
     const res = await API.submitEx(lesson.id, answers);
     applyExerciseResults(lesson, res);
     btn.style.display = 'none';
-    state.progress = await API.progress();
-    renderMiniProgress();
+    syncProgress(await API.progress());
   };
 }
 
 function applyExerciseResults(lesson, res) {
-  lesson.exercises.forEach(e => {
-    const r = res.results[e.id];
-    const item = document.querySelector(`.ex-item[data-ex="${e.id}"]`);
-    if (!r || !item) return;
-    if (e.type === 'mcq' || e.type === 'listen') {
-      const box = item.querySelector('.opts'); box.classList.add('done');
-      box.querySelectorAll('.opt').forEach(o => {
-        o.classList.add('locked');
-        const i = +o.dataset.i;
-        if (i === r.answer) o.classList.add('correct');
-        else if (o.classList.contains('sel')) o.classList.add('wrong');
-      });
-    } else if (e.type === 'truefalse') {
-      const box = item.querySelector('.tf-row'); box.classList.add('done');
-      box.querySelectorAll('.tf-btn').forEach(b => {
-        const v = b.dataset.v === 'true';
-        if (v === r.answer) b.classList.add('correct');
-        else if (b.classList.contains('sel')) b.classList.add('wrong');
-      });
-    } else if (e.type === 'match') {
-      item.querySelectorAll('.match-item').forEach(mi => {
-        const a = mi.dataset.a;
-        const sel = mi.querySelector('select'); sel.disabled = true;
-        const truth = r.answer[a];
-        if (sel.value === truth) mi.classList.add('correct');
-        else { mi.classList.add('wrong'); sel.value = truth; }
-      });
-    }
-    const exp = document.getElementById('exp-' + e.id);
-    exp.innerHTML = `<b>${r.correct ? '✓ Зөв.' : '✕ Дахин хар.'}</b> ${cjk(esc(r.explain))}`;
-    exp.classList.add('show');
-  });
+  lesson.exercises.forEach(e => applyItemResult(e, res.results[e.id]));
 
   const pct = Math.round(res.score / res.total * 100);
   const pass = pct >= 60;
+  const isPack = lesson.room === 'pack';
+  const backHref = isPack ? '#/obama' : `#/room/${lesson.room}`;
+  const backLabel = isPack ? 'Обама руу буцах' : 'Өрөө рүү';
   const box = document.getElementById('exResult');
   box.innerHTML = `<div class="result-banner ${pass ? 'pass' : 'fail'}" style="margin-top:24px;margin-bottom:0">
     ${ring(pct, pass ? 'var(--ok)' : 'var(--err)')}
     <div style="flex:1">
       <h3>${res.perfect ? 'Төгс! Гайхалтай.' : pass ? 'Сайн ажиллаа!' : 'Дахин нэг оролдоё'}</h3>
-      <p>${res.score}/${res.total} зөв · +${res.xp} XP цуглууллаа</p>
+      <p>${res.score}/${res.total} зөв · +${res.xp} XP цуглууллаа${isPack
+        ? ' · дүн Обамад харагдана' : ''}</p>
     </div>
-    <a class="btn btn-ghost" href="#/room/${lesson.room}">Өрөө рүү ${icon('arrowRight')}</a>
+    <a class="btn btn-ghost" href="${backHref}">${backLabel} ${icon('arrowRight')}</a>
   </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
   if (res.perfect) { confetti(); toast('Төгс дүн! +' + res.xp + ' XP', 'star'); }
@@ -576,47 +647,15 @@ async function examView(roomId) {
     <div id="examResult"></div>
   </div>`;
 
-  $$('.opts').forEach(box => {
-    const ex = box.dataset.ex;
-    box.querySelectorAll('.opt').forEach(opt => opt.onclick = () => {
-      if (box.classList.contains('done')) return;
-      box.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
-      opt.classList.add('sel'); ans[ex] = +opt.dataset.i;
-    });
-  });
-  $$('.tf-row').forEach(box => {
-    const ex = box.dataset.ex;
-    box.querySelectorAll('.tf-btn').forEach(btn => btn.onclick = () => {
-      if (box.classList.contains('done')) return;
-      box.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel'); ans[ex] = btn.dataset.v === 'true';
-    });
-  });
+  wireAnswerInputs(ans);
 
   $('#examSubmit').onclick = async () => {
-    if (Object.keys(ans).length < exam.questions.length) {
+    if (!exam.questions.every(q => isAnswered(q, ans))) {
       toast('Бүх асуултад хариулна уу', 'x'); return;
     }
     const btn = $('#examSubmit'); btn.disabled = true; btn.innerHTML = 'Дүгнэж байна…';
     const res = await API.submitExam(roomId, ans);
-    exam.questions.forEach(q => {
-      const r = res.results[q.id];
-      const item = document.querySelector(`.ex-item[data-ex="${q.id}"]`);
-      if (q.type === 'mcq') {
-        const b = item.querySelector('.opts'); b.classList.add('done');
-        b.querySelectorAll('.opt').forEach(o => { o.classList.add('locked');
-          if (+o.dataset.i === r.answer) o.classList.add('correct');
-          else if (o.classList.contains('sel')) o.classList.add('wrong'); });
-      } else {
-        const b = item.querySelector('.tf-row'); b.classList.add('done');
-        b.querySelectorAll('.tf-btn').forEach(x => { const v = x.dataset.v === 'true';
-          if (v === r.answer) x.classList.add('correct');
-          else if (x.classList.contains('sel')) x.classList.add('wrong'); });
-      }
-      const exp = document.getElementById('exp-' + q.id);
-      exp.innerHTML = `<b>${r.correct ? '✓' : '✕'}</b> ${cjk(esc(r.explain))}`;
-      exp.classList.add('show');
-    });
+    exam.questions.forEach(q => applyItemResult(q, res.results[q.id]));
     btn.style.display = 'none';
     const box = document.getElementById('examResult');
     box.innerHTML = `<div class="result-banner ${res.passed ? 'pass' : 'fail'}" style="margin-top:24px">
@@ -626,7 +665,7 @@ async function examView(roomId) {
         ${res.passed ? ' · «Ирээдүйн шүүгч» тэмдэг нээгдлээ' : ' · дахин оролдоод үзээрэй'}</p></div>
       <a class="btn btn-ghost" href="#/room/${roomId}">Өрөө рүү ${icon('arrowRight')}</a></div>`;
     box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    state.progress = await API.progress(); renderMiniProgress();
+    syncProgress(await API.progress());
     if (res.passed) { confetti(); toast('Шалгалт тэнцлээ!', 'gavel'); }
     else toast('Дахин оролдоно уу', 'x');
   };
@@ -788,19 +827,19 @@ async function handleUpload(files) {
 const OBAMA_TYPES = {
   reading: { label: 'Уншлага', icon: 'link2' },
   task:    { label: 'Даалгавар', icon: 'briefcase' },
+  pack:    { label: 'Сургалтын багц', icon: 'book' },
   note:    { label: 'Тэмдэглэл', icon: 'bell' },
 };
 
 async function obamaView() {
-  const items = await API.obamaList();
-  const wasUnread = new Set(items.filter(i => !i.read).map(i => i.id));
+  const [items, packs] = await Promise.all([API.obamaList(), API.packs()]);
 
   view.innerHTML = `
   <div class="page-head">
     <div class="eyebrow">${icon('briefcase')} Мэнторын өрөө</div>
     <h1 class="page-title">Obama <span class="accent">Room</span></h1>
-    <p class="page-sub">Энд Обама уншлага, даалгавар, тэмдэглэл нэмнэ — та тэдгээрийг мэдэгдлээр
-      хүлээн авна. Даалгаврыг дуусгаад тэмдэглэ, уншлагыг холбоосоор нь нээ.</p>
+    <p class="page-sub">Энд Обама уншлага, даалгавар, сургалтын багц нэмнэ — та тэдгээрийг
+      мэдэгдлээр хүлээн авна. Багцыг нээж суралцаад дасгалаа өгөхөд дүн тань энд харагдана.</p>
   </div>
 
   <div class="compose-panel">
@@ -811,6 +850,12 @@ async function obamaView() {
           ${icon(v.icon)} ${v.label}</button>`).join('')}
     </div>
     <div class="compose-fields">
+      <div class="row2" id="obPackRow">
+        <select id="obPack">
+          <option value="">— Сургалтын багц сонгох —</option>
+          ${packs.map(p => `<option value="${esc(p.id)}">${esc(p.title)} · ${p.exercises} дасгал · ${p.xp} XP</option>`).join('')}
+        </select>
+      </div>
       <input type="text" id="obTitle" placeholder="Гарчиг…">
       <textarea id="obBody" placeholder="Агуулга, зааварчилгаа…"></textarea>
       <div class="row2" id="obReadingRow">
@@ -818,9 +863,7 @@ async function obamaView() {
       </div>
       <div class="row2" id="obTaskRow">
         <input type="date" id="obDue" placeholder="Дуусах хугацаа">
-        <select id="obPriority" style="border:1.5px solid var(--line);border-radius:12px;
-          padding:11px 14px;font-family:var(--sans);font-size:14.5px;color:var(--ink);
-          background:var(--card-2)">
+        <select id="obPriority">
           <option value="normal">Энгийн ач холбогдол</option>
           <option value="high">Яаралтай</option>
           <option value="low">Яарах шаардлагагүй</option>
@@ -835,15 +878,18 @@ async function obamaView() {
   <div id="obamaFeed">${items.length ? items.map(obamaCard).join('')
     : `<div class="empty">${icon('inbox')}<p>Одоогоор зүйл алга. Дээрх маягтаар эхнийхээ нэмээрэй.</p></div>`}</div>`;
 
-  wireObamaCompose();
+  wireObamaCompose(packs);
   wireObamaFeed();
 
-  // Feed-ийг үзсэнээр unread-г арилгана (inbox семантик)
-  if (wasUnread.size) {
-    await API.obamaReadAll();
-    state.obamaUnread = 0;
-    renderNav();
+  // Feed-ийг үзсэнээр unread-г арилгана (inbox семантик).
+  // Саяхан энэ дэлгэцээс өөрөө нэмсэн зүйлийг "уншсан" болгохгүй —
+  // тэгэхгүй бол Оюу мэдэгдлээ огт харахгүй байх байсан.
+  const toRead = items.filter(i => !i.read && !state.obamaJustCreated.has(i.id));
+  if (toRead.length) {
+    await Promise.all(toRead.map(i => API.obamaRead(i.id)));
   }
+  state.obamaUnread = items.filter(i => !i.read && state.obamaJustCreated.has(i.id)).length;
+  renderNav();
 }
 
 function obamaCard(it) {
@@ -857,6 +903,18 @@ function obamaCard(it) {
   const taskCheck = it.type === 'task'
     ? `<span class="memo-check ${it.done ? 'done' : ''}" data-toggledone="${it.id}">
         ${icon(it.done ? 'check' : 'target')} ${it.done ? 'Дуусгасан' : 'Дуусгах'}</span>` : '';
+  let packStatus = '';
+  if (it.type === 'pack' && it.pack_id) {
+    if (it.done && it.total) {
+      const pct = Math.round(it.score / it.total * 100);
+      packStatus = `<span class="pill" style="background:var(--ok-bg);color:var(--ok)">
+          ${icon('check')} Дууссан · ${it.score}/${it.total} (${pct}%)</span>
+        <a class="btn btn-ghost btn-sm" href="#/lesson/${esc(it.pack_id)}">Дахин хийх</a>`;
+    } else {
+      packStatus = `<span class="pill">${icon('clock')} Эхлээгүй</span>
+        <a class="btn btn-primary btn-sm" href="#/lesson/${esc(it.pack_id)}">${icon('book')} Багц нээх</a>`;
+    }
+  }
   return `<div class="memo-card t-${it.type} ${unread ? 'unread' : ''}" data-item="${it.id}">
     <div class="memo-ic">${icon(meta.icon)}</div>
     <div class="memo-main">
@@ -866,7 +924,7 @@ function obamaCard(it) {
         ${unread ? '<span class="pill" style="background:var(--gold-glow);color:var(--gold)">Шинэ</span>' : ''}
       </div>
       ${it.body ? `<div class="memo-body">${esc(it.body)}</div>` : ''}
-      <div class="memo-meta">${dueBadge}${linkBadge}${taskCheck}
+      <div class="memo-meta">${dueBadge}${linkBadge}${taskCheck}${packStatus}
         <span style="font-size:11.5px;color:var(--ink-soft)">${new Date(it.created_at).toLocaleString('mn-MN')}</span>
       </div>
     </div>
@@ -874,28 +932,42 @@ function obamaCard(it) {
   </div>`;
 }
 
-function wireObamaCompose() {
+function wireObamaCompose(packs = []) {
+  const syncRows = (t) => {
+    $('#obReadingRow').classList.toggle('hidden', t !== 'reading');
+    $('#obTaskRow').classList.toggle('hidden', t !== 'task');
+    $('#obPackRow').classList.toggle('hidden', t !== 'pack');
+  };
   $$('#obamaTypeSeg button').forEach(b => b.onclick = () => {
     state.obamaComposeType = b.dataset.t;
     $$('#obamaTypeSeg button').forEach(x => x.classList.toggle('active', x === b));
-    $('#obReadingRow').classList.toggle('hidden', b.dataset.t !== 'reading');
-    $('#obTaskRow').classList.toggle('hidden', b.dataset.t !== 'task');
+    syncRows(b.dataset.t);
   });
-  $('#obReadingRow').classList.toggle('hidden', state.obamaComposeType !== 'reading');
-  $('#obTaskRow').classList.toggle('hidden', state.obamaComposeType !== 'task');
+  syncRows(state.obamaComposeType);
+
+  // Багц сонгоход гарчгийг автоматаар бөглөнө (засаж болно)
+  $('#obPack').onchange = () => {
+    const p = packs.find(x => x.id === $('#obPack').value);
+    if (p) $('#obTitle').value = p.title;
+  };
 
   $('#obamaSubmit').onclick = async () => {
+    const t = state.obamaComposeType;
     const title = $('#obTitle').value.trim();
     if (!title) { toast('Гарчиг оруулна уу', 'x'); return; }
+    if (t === 'pack' && !$('#obPack').value) { toast('Багц сонгоно уу', 'x'); return; }
+    // Нуугдсан талбаруудын хуучин утгыг илгээхгүй
     const payload = {
-      type: state.obamaComposeType,
+      type: t,
       title,
       body: $('#obBody').value.trim(),
-      link: $('#obLink').value.trim() || null,
-      due_date: $('#obDue').value || null,
-      priority: $('#obPriority').value,
+      link: t === 'reading' ? ($('#obLink').value.trim() || null) : null,
+      due_date: t === 'task' ? ($('#obDue').value || null) : null,
+      priority: t === 'task' ? $('#obPriority').value : 'normal',
+      pack_id: t === 'pack' ? $('#obPack').value : null,
     };
-    await API.obamaCreate(payload);
+    const res = await API.obamaCreate(payload);
+    if (res && res.id) state.obamaJustCreated.add(res.id);
     toast('Нэмэгдлээ — Оюуд мэдэгдэл очлоо', 'bell');
     obamaView();
   };
@@ -916,7 +988,7 @@ function wireObamaFeed() {
 /* =============================== PROGRESS =============================== */
 async function progressView() {
   const p = await API.progress();
-  state.progress = p; renderMiniProgress();
+  syncProgress(p);
   const pct = Math.round(p.xpInto / p.xpNext * 100);
 
   view.innerHTML = `
@@ -968,11 +1040,9 @@ document.body.appendChild(menuBtn);
 window.addEventListener('hashchange', router);
 (async () => {
   try {
-    state.progress = await API.progress(); renderMiniProgress();
-    const u = await API.obamaUnread();
-    state.obamaUnread = u.unread;
-    if (u.unread > 0 && location.hash.replace(/^#\//, '') !== 'obama') {
-      setTimeout(() => toast(`Obama Room-д ${u.unread} шинэ зүйл ирлээ`, 'bell'), 500);
+    syncProgress(await API.progress());
+    if (state.obamaUnread > 0 && location.hash.replace(/^#\//, '') !== 'obama') {
+      setTimeout(() => toast(`Obama Room-д ${state.obamaUnread} шинэ зүйл ирлээ`, 'bell'), 500);
     }
   } catch (e) {}
   router();

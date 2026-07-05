@@ -36,6 +36,7 @@ const API = {
   saveNote:   (note) => API._post('/api/notes', note),
   deleteNote: (id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }).then(r => r.json()),
 
+  packs:       () => API._get('/api/packs'),
   obamaList:   () => API._get('/api/obama'),
   obamaUnread: () => API._get('/api/obama/unread'),
   obamaCreate: (item) => API._post('/api/obama', item),
