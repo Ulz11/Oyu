@@ -3,7 +3,7 @@
 import sqlite3
 import json
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -75,6 +75,18 @@ def init_db() -> None:
                 pack_id     TEXT,
                 score       INTEGER,
                 total       INTEGER
+            );
+            -- Зайлшгүй давталт (SM-2 lite). Картын агуулга content.py-д;
+            -- энд зөвхөн картын хуваарийн төлөв хадгална.
+            CREATE TABLE IF NOT EXISTS srs (
+                card_key    TEXT PRIMARY KEY,
+                lesson_id   TEXT,
+                ease        REAL DEFAULT 2.5,
+                interval    INTEGER DEFAULT 0,
+                due         TEXT,
+                reps        INTEGER DEFAULT 0,
+                lapses      INTEGER DEFAULT 0,
+                last_review TEXT
             );
             """
         )
@@ -255,3 +267,72 @@ def done_obama_tasks_count():
         return c.execute(
             "SELECT COUNT(*) FROM obama_items WHERE type='task' AND done=1"
         ).fetchone()[0]
+
+
+# --------------------------- Зайлшгүй давталт (SRS) ------------------------
+# SM-2 lite: карт бүрийг чанараар үнэлж (again/hard/good/easy), дараагийн
+# давтах огноог тооцно. Картын урд/ард талыг content.py-аас card_key-ээр авна.
+
+def _today() -> str:
+    return date.today().isoformat()
+
+
+_SRS_QUALITY = {"again": 0, "hard": 3, "good": 4, "easy": 5}
+
+
+def activate_srs_cards(cards):
+    """cards: [(card_key, lesson_id), ...] — байхгүй бол өнөөдөр давтахаар нэмнэ."""
+    with connect() as c:
+        for key, lesson_id in cards:
+            c.execute(
+                """INSERT OR IGNORE INTO srs
+                   (card_key, lesson_id, ease, interval, due, reps, lapses)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (key, lesson_id, 2.5, 0, _today(), 0, 0),
+            )
+
+
+def due_srs(limit=40):
+    with connect() as c:
+        rows = c.execute(
+            "SELECT * FROM srs WHERE due <= ? ORDER BY due ASC LIMIT ?",
+            (_today(), limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def srs_counts():
+    with connect() as c:
+        total = c.execute("SELECT COUNT(*) FROM srs").fetchone()[0]
+        due = c.execute("SELECT COUNT(*) FROM srs WHERE due <= ?", (_today(),)).fetchone()[0]
+        reps = c.execute("SELECT COALESCE(SUM(reps),0) FROM srs").fetchone()[0]
+    return {"total": total, "due": due, "reps": reps}
+
+
+def review_srs(card_key, grade):
+    """SM-2 lite шинэчлэл. grade ∈ again|hard|good|easy."""
+    q = _SRS_QUALITY.get(grade, 4)
+    with connect() as c:
+        row = c.execute("SELECT * FROM srs WHERE card_key=?", (card_key,)).fetchone()
+        if not row:
+            return None
+        ease, interval, reps, lapses = row["ease"], row["interval"], row["reps"], row["lapses"]
+        if q < 3:                       # again — эхнээс нь давтана
+            reps, interval, lapses, due_days = 0, 0, lapses + 1, 0
+        else:
+            reps += 1
+            if reps == 1:
+                interval = 1
+            elif reps == 2:
+                interval = 3
+            else:
+                interval = round(interval * ease)
+            ease = max(1.3, ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)))
+            due_days = interval
+        due_date = (date.today() + timedelta(days=due_days)).isoformat()
+        c.execute(
+            """UPDATE srs SET ease=?, interval=?, due=?, reps=?, lapses=?, last_review=?
+               WHERE card_key=?""",
+            (ease, interval, due_date, reps, lapses, _now(), card_key),
+        )
+    return {"interval": interval, "due": due_date, "ease": round(ease, 2), "reps": reps}

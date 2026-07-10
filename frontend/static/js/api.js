@@ -46,6 +46,8 @@ const API = {
   deleteNote: (id) => fetch(`/api/notes/${id}`, { method: 'DELETE' }).then(r => API._check(r)),
 
   packs:       () => API._get('/api/packs'),
+  srsDue:      () => API._get('/api/srs/due'),
+  srsAnswer:   (card_key, grade) => API._post('/api/srs/answer', { card_key, grade }),
   obamaList:   () => API._get('/api/obama'),
   obamaUnread: () => API._get('/api/obama/unread'),
   obamaCreate: (item) => API._post('/api/obama', item),

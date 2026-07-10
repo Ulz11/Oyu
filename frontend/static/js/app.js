@@ -4,7 +4,8 @@
    ============================================================ */
 
 const state = { progress: null, answers: {}, graph: null, graphRoom: 'law', graphMode: '3d',
-  obamaUnread: 0, obamaComposeType: 'reading', obamaJustCreated: new Set(), user: null };
+  obamaUnread: 0, obamaComposeType: 'reading', obamaJustCreated: new Set(), user: null,
+  srsDue: 0 };
 const view = document.getElementById('view');
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -70,6 +71,136 @@ function speakBtn(text, cls = '') {
 function wireSpeak(root = document) {
   $$('[data-tts]', root).forEach(b => {
     b.onclick = (e) => { e.stopPropagation(); Voice.speak(b.dataset.tts, b); };
+  });
+}
+
+/* ============================================================
+   ЯРИА ТАНИХ — Web Speech Recognition (zh-CN). Дэмжихгүй бол
+   бичлэг хийж, өөрийгөө сонсох fallback руу орно.
+   ============================================================ */
+const Recognizer = {
+  supported: !!(window.SpeechRecognition || window.webkitSpeechRecognition),
+  rec: null,
+  listen() {
+    return new Promise((resolve, reject) => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { reject(new Error('unsupported')); return; }
+      const r = new SR();
+      r.lang = 'zh-CN'; r.interimResults = false; r.maxAlternatives = 3;
+      let done = false;
+      r.onresult = (e) => {
+        done = true;
+        const alts = [...e.results[0]].map(a => a.transcript);
+        resolve(alts);
+      };
+      r.onerror = (e) => { if (!done) reject(new Error(e.error || 'error')); };
+      r.onend = () => { if (!done) reject(new Error('no-speech')); };
+      this.rec = r;
+      try { r.start(); } catch (e) { reject(e); }
+    });
+  },
+  stop() { try { this.rec && this.rec.stop(); } catch (e) {} },
+};
+
+/* Дуудлагыг зорилттой уян хатан харьцуулах (client талын урьдчилсан таамаг) */
+function zhOnly(s) { return String(s || '').replace(/[^一-鿿]/g, ''); }
+
+/* ============================================================
+   УНШИХ — passage-г үгсийн жагсаалтаар нь тасалж, дарж болохоор
+   ============================================================ */
+function segmentZh(sentence, words) {
+  const dict = (words || []).slice().sort((a, b) => b.term.length - a.term.length);
+  let out = '', i = 0;
+  while (i < sentence.length) {
+    let hit = null;
+    for (const w of dict) {
+      if (sentence.startsWith(w.term, i)) { hit = w; break; }
+    }
+    if (hit) {
+      out += `<span class="rd-word" data-term="${esc(hit.term)}"
+        data-py="${esc(hit.pinyin || '')}" data-gloss="${esc(hit.gloss || '')}">${esc(hit.term)}</span>`;
+      i += hit.term.length;
+    } else {
+      out += esc(sentence[i]); i += 1;
+    }
+  }
+  return out;
+}
+
+function wireReaders(root = document) {
+  $$('.reading-block', root).forEach(block => {
+    const toggle = $('.rd-toggle', block);
+    if (toggle) toggle.onclick = () => {
+      const on = block.classList.toggle('show-pinyin');
+      toggle.classList.toggle('active', on);
+      toggle.innerHTML = `${icon('language')} ${on ? 'Пиньинь нуух' : 'Пиньинь харуулах'}`;
+    };
+    const tr = $('.rd-tr-toggle', block);
+    if (tr) tr.onclick = () => {
+      const on = block.classList.toggle('show-mn');
+      tr.classList.toggle('active', on);
+      tr.innerHTML = `${icon('quote')} ${on ? 'Орчуулга нуух' : 'Орчуулга харуулах'}`;
+    };
+  });
+  // Үг дээр дарахад popup
+  $$('.rd-word', root).forEach(w => w.onclick = (e) => {
+    e.stopPropagation();
+    $$('.rd-pop').forEach(p => p.remove());
+    const pop = document.createElement('div');
+    pop.className = 'rd-pop';
+    pop.innerHTML = `${speakBtn(w.dataset.term)}
+      <div><div class="rp-term">${esc(w.dataset.term)}</div>
+      <div class="rp-py">${esc(w.dataset.py)}</div>
+      <div class="rp-gloss">${esc(w.dataset.gloss)}</div></div>`;
+    w.appendChild(pop);
+    wireSpeak(pop);
+    const close = (ev) => { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('click', close); } };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  });
+}
+
+/* ============================================================
+   ХАНЗ БИЧИХ — hanzi-writer (шаардлагатай үед л ачаална)
+   ============================================================ */
+let _hwPromise = null;
+function loadHanziWriter() {
+  if (window.HanziWriter) return Promise.resolve(window.HanziWriter);
+  if (_hwPromise) return _hwPromise;
+  _hwPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/static/vendor/hanzi-writer.min.js';
+    s.onload = () => resolve(window.HanziWriter);
+    s.onerror = () => reject(new Error('hanzi-writer ачаалж чадсангүй'));
+    document.head.appendChild(s);
+  });
+  return _hwPromise;
+}
+function wireHanzi(root = document) {
+  $$('.hz-char', root).forEach(el => el.onclick = async () => {
+    const ch = el.dataset.ch;
+    $$('.hz-stage').forEach(s => s.remove());
+    const stage = document.createElement('div');
+    stage.className = 'hz-stage';
+    stage.innerHTML = `<div class="hz-target" id="hzt"></div>
+      <div class="hz-acts">
+        <button class="btn btn-ghost btn-sm" id="hzAnim">${icon('play')} Дараалал</button>
+        <button class="btn btn-primary btn-sm" id="hzQuiz">${icon('feather')} Бичиж үзэх</button>
+        <button class="icon-btn" id="hzClose">${icon('x')}</button></div>`;
+    el.after(stage);
+    try {
+      const HW = await loadHanziWriter();
+      const w = HW.create('hzt', ch, {
+        width: 190, height: 190, padding: 6, showOutline: true,
+        strokeColor: '#a52a63', radicalColor: '#3b82f6', drawingColor: '#1f9d63',
+      });
+      $('#hzAnim', stage).onclick = () => w.animateCharacter();
+      $('#hzQuiz', stage).onclick = () => { w.quiz(); };
+      w.animateCharacter();
+    } catch (e) {
+      $('#hzt', stage).innerHTML = `<div class="hz-fallback">${esc(ch)}</div>`;
+      toast('Ханзны дараалал ачаалж чадсангүй', 'x');
+    }
+    $('#hzClose', stage).onclick = () => stage.remove();
   });
 }
 
@@ -228,6 +359,7 @@ const NAV = [
   { id: 'room/law', icon: 'scale', label: 'Хууль зүй' },
   { id: 'room/chinese', icon: 'language', label: 'Хятад хэл' },
   { group: 'Хэрэгсэл' },
+  { id: 'review', icon: 'brain', label: 'Давталт', srs: true },
   { id: 'graph', icon: 'graph', label: 'Мэдлэгийн граф' },
   { id: 'files', icon: 'folder', label: 'Миний файл' },
   { id: 'progress', icon: 'chart', label: 'Явц ба амжилт' },
@@ -242,7 +374,9 @@ function renderNav() {
     if (n.group) return `<div class="nav-group">${n.group}</div>`;
     const active = (cur === n.id) || (n.id && cur.startsWith(n.id)) || (n.id === '' && cur === '');
     const badge = (n.unread && state.obamaUnread > 0)
-      ? `<span class="nav-badge-dot">${state.obamaUnread}</span>` : '';
+      ? `<span class="nav-badge-dot">${state.obamaUnread}</span>`
+      : (n.srs && state.srsDue > 0)
+      ? `<span class="nav-badge-dot srs">${state.srsDue}</span>` : '';
     return `<a class="nav-item ${active ? 'active' : ''}" href="#/${n.id}">
       ${icon(n.icon)}<span>${n.label}</span>${badge}</a>`;
   }).join('');
@@ -263,6 +397,7 @@ function renderMiniProgress() {
 function syncProgress(prog) {
   state.progress = prog;
   if (typeof prog.obamaUnread === 'number') state.obamaUnread = prog.obamaUnread;
+  if (prog.srs) state.srsDue = prog.srs.due;
   renderMiniProgress();
   renderNav();
 }
@@ -286,6 +421,7 @@ async function router() {
     if (route === 'room') return roomView(arg);
     if (route === 'lesson') return lessonView(arg);
     if (route === 'exam') return examView(arg);
+    if (route === 'review') return reviewView();
     if (route === 'graph') return graphView();
     if (route === 'files') return filesView();
     if (route === 'progress') return progressView();
@@ -331,8 +467,22 @@ async function dashboard() {
     </div>`;
   }).join('');
 
+  const due = prog.srs ? prog.srs.due : 0;
+  const srsTotal = prog.srs ? prog.srs.total : 0;
+  const srsTile = `
+    <div class="tile col-4 srs-tile ${due > 0 ? 'has-due' : ''}">
+      <div class="tile-eyebrow">${icon('brain', 'lead')}<h3>Өнөөдрийн давталт</h3>
+        ${due > 0 ? `<span class="nav-badge-dot srs">${due}</span>` : ''}</div>
+      <p style="color:var(--ink-2);font-size:14px">${due > 0
+        ? `${due} үг давтахад бэлэн.`
+        : (srsTotal ? 'Өнөөдрийн үгсийг бүгдийг давтжээ 🎉'
+                    : 'Хятад хичээл дуусгаснаар үгс энд хуримтлагдана.')}</p>
+      <div style="margin-top:14px"><a class="btn ${due > 0 ? 'btn-primary' : 'btn-ghost'} btn-sm"
+        href="#/review">${icon('brain')} ${due > 0 ? 'Давтах' : 'Түрүүлж давтах'}</a></div>
+    </div>`;
+
   const continueCard = next ? `
-    <div class="tile col-12 continue-card hoverable" onclick="location.hash='#/lesson/${next.id}'">
+    <div class="tile col-8 continue-card hoverable" onclick="location.hash='#/lesson/${next.id}'">
       <div class="cc-ico">${icon('play')}</div>
       <div class="cc-main">
         <div class="cc-lab">Дараагийн хичээл · ${next.room === 'law' ? 'Хууль зүй' : 'Хятад хэл'}</div>
@@ -370,6 +520,7 @@ async function dashboard() {
         onclick="location.hash='#/obama'">${icon('inbox')} Нээх</span></div>
     </div>
 
+    ${srsTile}
     ${continueCard}
 
     ${roomTiles}
@@ -526,6 +677,36 @@ async function lessonView(lessonId) {
           <div class="compare-col right"><div class="compare-lab">${esc(b.right.label)}</div>
             <div class="compare-body">${cjk(esc(b.right.body))}</div></div>
         </div></div>`;
+      case 'grammar': return `<div class="block block-grammar">
+        <div class="gr-head">${icon('bulb')} <h4>${esc(b.title)}</h4></div>
+        <div class="gr-pattern">${esc(b.pattern)}</div>
+        <div class="gr-examples">${b.examples.map(ex => `<div class="gr-ex">
+          ${speakBtn(ex.zh)}
+          <div><div class="gx-zh">${esc(ex.zh)}</div>
+            <div class="gx-py">${esc(ex.pinyin)}</div>
+            <div class="gx-mn">${esc(ex.mn)}</div></div></div>`).join('')}</div></div>`;
+      case 'reading': return `<div class="block reading-block">
+        <div class="rd-head">${icon('book')} <h4>${esc(b.title)}</h4>
+          <div class="rd-tools">
+            <button class="rd-toggle">${icon('language')} Пиньинь харуулах</button>
+            <button class="rd-tr-toggle">${icon('quote')} Орчуулга харуулах</button>
+            ${speakBtn((b.sentences || []).map(s => s.zh).join(''), 'lg')}</div></div>
+        <div class="rd-body">${(b.sentences || []).map(s => `<div class="rd-sent">
+          ${speakBtn(s.zh)}
+          <div class="rd-line"><div class="rd-zh">${segmentZh(s.zh, b.words)}</div>
+            <div class="rd-py">${esc(s.pinyin)}</div>
+            <div class="rd-mn">${esc(s.mn)}</div></div></div>`).join('')}</div>
+        ${(b.words || []).length ? `<details class="rd-gloss"><summary>${icon('feather')} Үгсийн жагсаалт (${b.words.length})</summary>
+          <div class="rd-gloss-grid">${b.words.map(w => `<div class="rg-item">
+            ${speakBtn(w.term)}<b>${esc(w.term)}</b> <span>${esc(w.pinyin)}</span> — ${esc(w.gloss)}</div>`).join('')}</div></details>` : ''}
+        </div>`;
+      case 'hanzi': return `<div class="block block-hanzi">
+        <div class="hz-head">${icon('feather')} <h4>${esc(b.title || 'Ханз бичих дасгал')}</h4>
+          <span class="hz-hint">Ханз дээр дарж бичих дарааллыг үзээд өөрөө бичиж үзээрэй</span></div>
+        <div class="hz-grid">${b.chars.map(c => `<div class="hz-char" data-ch="${esc(c.zh || c)}">
+          <div class="hz-glyph">${esc(c.zh || c)}</div>
+          ${(c.pinyin) ? `<div class="hz-py">${esc(c.pinyin)}</div>` : ''}
+          ${(c.gloss) ? `<div class="hz-gloss">${esc(c.gloss)}</div>` : ''}</div>`).join('')}</div></div>`;
       default: return '';
     }
   };
@@ -573,6 +754,8 @@ async function lessonView(lessonId) {
   </div>`;
 
   wireSpeak();
+  wireReaders();
+  wireHanzi();
   wireExercises(l);
 }
 
@@ -609,6 +792,25 @@ function exerciseHtml(e, i) {
             ${right.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('')}
           </select></div>`).join('')}
       </div></div></div>`;
+  } else if (e.type === 'speak') {
+    body = `<div class="speak-box" data-ex="${e.id}">
+      <div class="sp-target">${speakBtn(e.hanzi, 'lg')}
+        <div><div class="sp-zh">${esc(e.hanzi)}</div><div class="sp-py">${esc(e.pinyin)}</div></div></div>
+      <button class="sp-mic" data-ex="${e.id}">${icon('sound')} Хэлж үзэх</button>
+      <div class="sp-heard" id="sp-${e.id}"></div></div>`;
+  } else if (e.type === 'order') {
+    body = `<div class="order-box" data-ex="${e.id}">
+      ${e.gloss ? `<div class="order-gloss">${icon('quote')} ${esc(e.gloss)}</div>` : ''}
+      <div class="order-answer" id="oa-${e.id}" data-ph="Хэсгүүдийг эндээс дараалуулна"></div>
+      <div class="order-bank" id="ob-${e.id}">${(e.tiles || []).map(t =>
+        `<button class="tile" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div></div>`;
+  } else if (e.type === 'write') {
+    body = `<div class="write-box" data-ex="${e.id}">
+      <div class="wr-targets">${(e.chars || []).map((c, ci) => `<div class="wr-char"
+        data-ex="${e.id}" data-i="${ci}" data-ch="${esc(c.zh || c)}">
+        <div class="wr-pad" id="wr-${e.id}-${ci}"></div>
+        <div class="wr-lab">${esc(c.zh || c)}${c.pinyin ? ` · ${esc(c.pinyin)}` : ''}</div>
+        <div class="wr-status">${icon('feather')} бичих</div></div>`).join('')}</div></div>`;
   }
   return `<div class="ex-item" data-ex="${e.id}" data-type="${e.type}">
     <div class="ex-q"><div class="n">${i + 1}</div><div class="txt">${cjk(esc(e.prompt))}</div></div>
@@ -648,6 +850,78 @@ function wireAnswerInputs(answers) {
       sel.onchange = () => { answers[ex][sel.dataset.a] = sel.value; };
     });
   });
+  // Ярих — таних (эсвэл дэмжихгүй бол өөрийгөө үнэлэх)
+  $$('.speak-box').forEach(box => {
+    const ex = box.dataset.ex;
+    const mic = $('.sp-mic', box), heard = $('#sp-' + ex);
+    const target = $('.sp-zh', box).textContent;
+    mic.onclick = async () => {
+      if (box.classList.contains('done')) return;
+      if (!Recognizer.supported) {
+        heard.innerHTML = `<div class="sp-self">Энэ хөтөч яриа таних дэмжихгүй байна.
+          Товч дээр дарж сонсоод, чангаар давт: <b>${esc(target)}</b>
+          <div class="sp-self-btns"><button class="btn btn-primary btn-sm" id="spok-${ex}">
+          ${icon('check')} Зөв хэллээ</button></div></div>`;
+        $('#spok-' + ex).onclick = () => { answers[ex] = target; heard.innerHTML =
+          `<span class="sp-ok">${icon('check')} Тэмдэглэв — «Шалгах» дар</span>`; };
+        return;
+      }
+      mic.classList.add('listening'); mic.innerHTML = icon('sound') + ' Сонсож байна…';
+      try {
+        const alts = await Recognizer.listen();
+        answers[ex] = alts[0];
+        const ok = zhOnly(alts[0]).includes(zhOnly(target)) || zhOnly(target).includes(zhOnly(alts[0]));
+        heard.innerHTML = `Сонссон нь: <b class="${ok ? 'sp-ok' : 'sp-warn'}">${esc(alts[0])}</b>`;
+      } catch (e) {
+        heard.innerHTML = `<span class="sp-warn">Дуу сонсогдсонгүй — дахин оролдоорой</span>`;
+      }
+      mic.classList.remove('listening'); mic.innerHTML = icon('sound') + ' Дахин хэлэх';
+    };
+  });
+  // Дараалуулах — хэсгүүдийг товшиж эвлүүлэх
+  $$('.order-box').forEach(box => {
+    const ex = box.dataset.ex;
+    const bank = $('#ob-' + ex), ans = $('#oa-' + ex);
+    answers[ex] = [];
+    const sync = () => { answers[ex] = [...ans.querySelectorAll('.tile')].map(t => t.dataset.t); };
+    bank.querySelectorAll('.tile').forEach(t => t.onclick = () => {
+      if (box.classList.contains('done')) return;
+      ans.appendChild(t); sync();
+    });
+    ans.onclick = (e) => {
+      const t = e.target.closest('.tile');
+      if (t && !box.classList.contains('done')) { bank.appendChild(t); sync(); }
+    };
+  });
+  // Бичих — hanzi-writer quiz
+  $$('.write-box').forEach(box => {
+    const ex = box.dataset.ex;
+    const chars = [...box.querySelectorAll('.wr-char')];
+    const doneSet = new Set();
+    chars.forEach(async (cc) => {
+      const ch = cc.dataset.ch, i = cc.dataset.i, status = $('.wr-status', cc);
+      try {
+        const HW = await loadHanziWriter();
+        const w = HW.create('wr-' + ex + '-' + i, ch, {
+          width: 120, height: 120, padding: 4, showHintAfterMisses: 2,
+          strokeColor: '#a52a63', drawingColor: '#1f9d63', showOutline: true, showCharacter: false,
+        });
+        w.quiz({
+          onComplete: () => {
+            cc.classList.add('done'); status.innerHTML = icon('check') + ' Дууссан';
+            doneSet.add(i);
+            if (doneSet.size === chars.length) answers[ex] = true;
+          },
+        });
+      } catch (e) {
+        // fallback: дарж дуусгасан гэж тэмдэглэх
+        status.innerHTML = icon('feather') + ' дарж баталгаажуулах';
+        cc.onclick = () => { cc.classList.add('done'); doneSet.add(i);
+          status.innerHTML = icon('check') + ' Тэмдэглэв';
+          if (doneSet.size === chars.length) answers[ex] = true; };
+      }
+    });
+  });
   wireSpeak();
 }
 
@@ -657,6 +931,9 @@ function isAnswered(q, answers) {
     const a = answers[q.id] || {};
     return (q.left || []).every(x => a[x]);
   }
+  if (q.type === 'order') return (answers[q.id] || []).length === (q.tiles || []).length;
+  if (q.type === 'speak') return !!(answers[q.id] && String(answers[q.id]).trim());
+  if (q.type === 'write') return answers[q.id] === true;
   return answers[q.id] !== undefined;
 }
 
@@ -687,6 +964,20 @@ function applyItemResult(e, r) {
       if (sel.value === truth) mi.classList.add('correct');
       else { mi.classList.add('wrong'); sel.value = truth; }
     });
+  } else if (e.type === 'speak') {
+    const box = item.querySelector('.speak-box'); box.classList.add('done', r.correct ? 'correct' : 'wrong');
+    const heard = document.getElementById('sp-' + e.id);
+    heard.innerHTML += ` <span class="${r.correct ? 'sp-ok' : 'sp-warn'}">${
+      r.correct ? '✓ зөв дуудлаа' : '✕ зорилт: ' + esc(r.answer || '')}</span>`;
+  } else if (e.type === 'order') {
+    const box = item.querySelector('.order-box'); box.classList.add('done', r.correct ? 'correct' : 'wrong');
+    if (!r.correct && Array.isArray(r.answer)) {
+      const ans = document.getElementById('oa-' + e.id);
+      ans.insertAdjacentHTML('afterbegin',
+        `<div class="order-correct">Зөв: ${r.answer.map(t => `<span class="tile ok">${esc(t)}</span>`).join('')}</div>`);
+    }
+  } else if (e.type === 'write') {
+    const box = item.querySelector('.write-box'); box.classList.add('done', r.correct ? 'correct' : 'wrong');
   }
   const exp = document.getElementById('exp-' + e.id);
   exp.innerHTML = `<b>${r.correct ? '✓ Зөв.' : '✕ Дахин хар.'}</b> ${cjk(esc(r.explain))}`;
@@ -720,7 +1011,8 @@ function applyExerciseResults(lesson, res) {
     ${ring(pct, pass ? 'var(--ok)' : 'var(--err)')}
     <div style="flex:1">
       <h3>${res.perfect ? 'Төгс! Гайхалтай.' : pass ? 'Сайн ажиллаа!' : 'Дахин нэг оролдоё'}</h3>
-      <p>${res.score}/${res.total} зөв · +${res.xp} XP цуглууллаа${isPack
+      <p>${res.score}/${res.total} зөв · +${res.xp} XP${res.srsAdded
+        ? ` · ${res.srsAdded} үг давталтад` : ''}${isPack
         ? ' · дүн Обамад харагдана' : ''}</p>
     </div>
     <a class="btn btn-ghost" href="${backHref}">${backLabel} ${icon('arrowRight')}</a>
@@ -770,6 +1062,63 @@ async function examView(roomId) {
     if (res.passed) { confetti(); toast('Шалгалт тэнцлээ!', 'gavel'); }
     else toast('Дахин оролдоно уу', 'x');
   };
+}
+
+/* ============================== ДАВТАЛТ (SRS) ============================= */
+async function reviewView() {
+  const data = await API.srsDue();
+  const cards = data.cards;
+  view.innerHTML = `
+  <div class="page-head">
+    <div class="eyebrow">${icon('brain')} Зайлшгүй давталт</div>
+    <h1 class="page-title">Үгсийн <span class="accent">давталт</span></h1>
+    <p class="page-sub">Тархай давтах нь мэдлэгийг бат бөх болгодог. Ханзыг хараад утгыг нь
+      санаж, өөрийгөө шударгаар үнэл — хуваарь хариулт бүрд тохирч өөрчлөгдөнө.</p>
+  </div>
+  <div id="srsStage"></div>`;
+  const stage = $('#srsStage');
+  if (!cards.length) {
+    stage.innerHTML = `<div class="empty">${icon('check')}
+      <p>${data.counts.total
+        ? 'Одоогоор давтах карт алга — дараа эргэж ороорой.'
+        : 'Хятад хэлний хичээл дуусгаснаар үгс энд давталтад орж эхэлнэ.'}</p></div>`;
+    return;
+  }
+  let idx = 0;
+  const render = () => {
+    if (idx >= cards.length) {
+      stage.innerHTML = `<div class="empty">${icon('flame')}
+        <p>Багц дууслаа — ${cards.length} карт давтлаа. Гайхалтай!</p>
+        <a class="btn btn-ghost" href="#/">${icon('home')} Нүүр хуудас</a></div>`;
+      API.progress().then(syncProgress);
+      return;
+    }
+    const c = cards[idx];
+    stage.innerHTML = `
+    <div class="srs-progress">Карт ${idx + 1} / ${cards.length}
+      <div class="srs-bar"><i style="width:${idx / cards.length * 100}%"></i></div></div>
+    <div class="srs-card verm">
+      <div class="srs-track">${icon('language')} Хятад хэл</div>
+      <div class="srs-front">${esc(c.front)} ${c.tts ? speakBtn(c.tts, 'lg') : ''}</div>
+      <div class="srs-back" id="srsBack" hidden><div class="srs-div"></div>${cjk(esc(c.back))}</div>
+      <div class="srs-actions" id="srsActions">
+        <button class="btn btn-primary" id="srsShow">${icon('brain')} Хариу харах</button></div>
+    </div>`;
+    wireSpeak(stage);
+    $('#srsShow').onclick = () => {
+      $('#srsBack').hidden = false;
+      $('#srsActions').innerHTML = `
+        <button class="grade again" data-g="again">Дахиад</button>
+        <button class="grade hard" data-g="hard">Хэцүү</button>
+        <button class="grade good" data-g="good">Зөв</button>
+        <button class="grade easy" data-g="easy">Амархан</button>`;
+      $$('#srsActions .grade').forEach(b => b.onclick = async () => {
+        await API.srsAnswer(c.card_key, b.dataset.g);
+        idx++; render();
+      });
+    };
+  };
+  render();
 }
 
 /* ================================ GRAPH ================================ */

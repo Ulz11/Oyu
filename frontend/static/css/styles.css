@@ -1078,3 +1078,171 @@ html[data-theme="dark"] .u-ava { background: linear-gradient(135deg, #ec4899, #9
   cursor: pointer; color: var(--lapis); }
 .menu-btn svg { width: 22px; height: 22px; }
 @media (max-width: 1080px) { .menu-btn { display: grid; } .view { padding-top: 74px; } }
+
+/* ============================================================
+   ХЯТАД ХЭЛНИЙ ШИНЭ МОДУЛЬ — давталт · унших · ярих · бичих
+   ============================================================ */
+
+/* Nav / dashboard SRS badge */
+.nav-badge-dot.srs { background: var(--verm); }
+.srs-tile.has-due { border-color: rgba(59,130,246,.4);
+  box-shadow: var(--sh-2), 0 0 0 3px rgba(59,130,246,.08); }
+
+/* ---- Давталт (SRS flashcards) ---- */
+.srs-progress { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }
+.srs-bar { height: 5px; border-radius: 5px; background: var(--fill-2); margin-top: 8px;
+  overflow: hidden; max-width: 500px; }
+.srs-bar > i { display: block; height: 100%; background: var(--verm); border-radius: 5px;
+  transition: width .4s var(--ease); }
+.srs-card { max-width: 640px; margin: 0 auto; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 40px 36px; box-shadow: var(--sh-2); text-align: center; }
+.srs-track { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600;
+  color: var(--verm); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 18px; }
+.srs-track svg { width: 15px; height: 15px; }
+.srs-front { font-family: var(--cjk-serif); font-size: 40px; font-weight: 700; color: var(--lapis-deep);
+  line-height: 1.3; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.srs-back { margin-top: 6px; font-family: var(--cjk); font-size: 18px; color: var(--ink-2); line-height: 1.6; }
+.srs-div { height: 1px; background: var(--line); margin: 22px 0; }
+.srs-actions { display: flex; gap: 10px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+.grade { padding: 11px 22px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card);
+  font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all .2s var(--spring); color: var(--ink); }
+.grade:hover { transform: translateY(-2px); }
+.grade.again { border-color: var(--err); color: var(--err); }
+.grade.hard { border-color: var(--gold); color: var(--gold); }
+.grade.good { border-color: var(--verm); color: var(--verm); }
+.grade.easy { border-color: var(--ok); color: var(--ok); }
+
+/* ---- Дүрмийн блок ---- */
+.block-grammar { background: linear-gradient(135deg, rgba(224,165,0,.06), transparent);
+  border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--r);
+  padding: 20px 24px; box-shadow: var(--sh-1); }
+.gr-head { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+.gr-head svg { width: 18px; height: 18px; color: var(--gold); }
+.gr-head h4 { font-family: var(--serif); font-size: 16.5px; font-weight: 700; color: var(--lapis-deep); }
+.gr-pattern { font-family: var(--cjk-serif); font-size: 20px; font-weight: 700; color: var(--lapis-deep);
+  background: var(--card); border: 1px dashed rgba(224,165,0,.5); border-radius: 12px;
+  padding: 12px 18px; text-align: center; margin-bottom: 14px; }
+.gr-examples { display: flex; flex-direction: column; gap: 10px; }
+.gr-ex { display: flex; gap: 12px; align-items: flex-start; }
+.gx-zh { font-family: var(--cjk-serif); font-size: 18px; font-weight: 700; color: var(--ink); }
+.gx-py { font-size: 12.5px; color: var(--verm); font-style: italic; font-weight: 600; }
+.gx-mn { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+
+/* ---- Унших блок ---- */
+.reading-block { background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 20px 24px; box-shadow: var(--sh-1); }
+.rd-head { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; flex-wrap: wrap; }
+.rd-head svg { width: 18px; height: 18px; color: var(--verm); }
+.rd-head h4 { font-family: var(--serif); font-size: 16.5px; font-weight: 700; color: var(--lapis-deep); }
+.rd-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rd-toggle, .rd-tr-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  font-weight: 600; padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--line);
+  background: var(--card); color: var(--ink-2); cursor: pointer; transition: all .2s; }
+.rd-toggle svg, .rd-tr-toggle svg { width: 13px; height: 13px; }
+.rd-toggle.active { border-color: var(--verm); background: var(--verm-glow); color: var(--verm); }
+.rd-tr-toggle.active { border-color: var(--lapis); background: var(--lapis-glow); color: var(--lapis-deep); }
+.rd-sent { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0;
+  border-top: 1px solid var(--line-soft); }
+.rd-sent:first-child { border-top: none; }
+.rd-zh { font-family: var(--cjk-serif); font-size: 21px; line-height: 1.7; color: var(--ink); }
+.rd-word { cursor: pointer; border-radius: 4px; padding: 0 1px; transition: background .15s; position: relative; }
+.rd-word:hover { background: var(--verm-glow); color: var(--verm); }
+.rd-py { font-size: 13px; color: var(--verm); font-style: italic; font-weight: 600; margin-top: 3px;
+  display: none; }
+.rd-mn { font-size: 13.5px; color: var(--ink-2); margin-top: 3px; display: none; }
+.reading-block.show-pinyin .rd-py { display: block; }
+.reading-block.show-mn .rd-mn { display: block; }
+.rd-pop { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--sh-3);
+  padding: 12px 14px; display: flex; gap: 10px; align-items: center; z-index: 20; white-space: nowrap;
+  cursor: default; }
+.rp-term { font-family: var(--cjk-serif); font-size: 18px; font-weight: 700; color: var(--lapis-deep); }
+.rp-py { font-size: 12px; color: var(--verm); font-style: italic; }
+.rp-gloss { font-size: 13px; color: var(--ink-2); }
+.rd-gloss { margin-top: 14px; }
+.rd-gloss summary { font-size: 13px; color: var(--verm); font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; }
+.rd-gloss summary svg { width: 14px; height: 14px; }
+.rd-gloss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;
+  margin-top: 12px; }
+.rg-item { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+.rg-item b { font-family: var(--cjk); color: var(--lapis-deep); }
+.rg-item span { color: var(--verm); font-style: italic; font-size: 12px; }
+.rg-item .speak-btn { width: 26px; height: 26px; }
+.rg-item .speak-btn svg { width: 12px; height: 12px; }
+
+/* ---- Ханз бичих блок ---- */
+.block-hanzi { background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 20px 24px; box-shadow: var(--sh-1); }
+.hz-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.hz-head svg { width: 18px; height: 18px; color: var(--lapis); }
+.hz-head h4 { font-family: var(--serif); font-size: 16.5px; font-weight: 700; color: var(--lapis-deep); }
+.hz-hint { font-size: 12px; color: var(--ink-soft); }
+.hz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+.hz-char { text-align: center; padding: 14px 10px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--card); cursor: pointer; transition: all .25s var(--ease); }
+.hz-char:hover { transform: translateY(-3px); box-shadow: var(--sh-2); border-color: var(--lapis); }
+.hz-glyph { font-family: var(--cjk-serif); font-size: 42px; font-weight: 700; color: var(--lapis-deep); line-height: 1.1; }
+.hz-py { font-size: 12.5px; color: var(--verm); font-style: italic; font-weight: 600; margin-top: 4px; }
+.hz-gloss { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.hz-stage { margin: 14px 0; padding: 18px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--card-2); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.hz-target { width: 190px; height: 190px; background: var(--card); border-radius: 12px;
+  border: 1px solid var(--line); }
+.hz-target svg line { stroke: var(--line); }
+.hz-acts { display: flex; gap: 10px; align-items: center; }
+.hz-fallback { font-family: var(--cjk-serif); font-size: 120px; color: var(--lapis-deep); line-height: 190px; }
+
+/* ---- Ярих дасгал ---- */
+.speak-box { padding-left: 39px; }
+.sp-target { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, var(--verm-glow), transparent);
+  border: 1px solid rgba(59,130,246,.22); border-radius: 16px; padding: 14px 18px; margin-bottom: 12px; }
+.sp-zh { font-family: var(--cjk-serif); font-size: 26px; font-weight: 700; color: var(--lapis-deep); }
+.sp-py { font-size: 13.5px; color: var(--verm); font-style: italic; font-weight: 600; }
+.sp-mic { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 40px;
+  border: 1.5px solid var(--verm); background: var(--verm-glow); color: var(--verm); font-family: var(--sans);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all .25s var(--spring); }
+.sp-mic:hover { background: var(--verm); color: #fff; }
+.sp-mic svg { width: 16px; height: 16px; }
+.sp-mic.listening { background: var(--verm); color: #fff; animation: speakPulse 1s ease infinite; }
+.sp-heard { margin-top: 10px; font-size: 14px; color: var(--ink-2); font-family: var(--cjk); }
+.sp-heard b { font-family: var(--cjk-serif); font-size: 17px; }
+.sp-ok { color: var(--ok); } .sp-warn { color: var(--err); }
+.sp-self { font-size: 13.5px; color: var(--ink-2); }
+.sp-self b { font-family: var(--cjk-serif); font-size: 18px; color: var(--lapis-deep); }
+.sp-self-btns { margin-top: 10px; }
+.speak-box.correct .sp-target { border-color: var(--ok); background: var(--ok-bg); }
+.speak-box.wrong .sp-target { border-color: var(--err); background: var(--err-bg); }
+
+/* ---- Дараалуулах дасгал ---- */
+.order-box { padding-left: 39px; }
+.order-gloss { font-size: 13px; color: var(--ink-soft); font-style: italic; margin-bottom: 10px;
+  display: flex; gap: 6px; align-items: center; }
+.order-gloss svg { width: 13px; height: 13px; }
+.order-answer { min-height: 52px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px 12px; border: 1.5px dashed var(--line); border-radius: 12px; margin-bottom: 12px; }
+.order-answer:empty::before { content: attr(data-ph); color: var(--ink-soft); font-size: 13px; font-style: italic; }
+.order-bank { display: flex; flex-wrap: wrap; gap: 8px; }
+.tile { font-family: var(--cjk-serif); font-size: 18px; font-weight: 700; padding: 8px 16px;
+  border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); color: var(--lapis-deep);
+  cursor: pointer; transition: all .18s var(--spring); }
+.tile:hover { border-color: var(--verm); transform: translateY(-2px); }
+.tile.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); cursor: default; }
+.order-answer .tile { background: var(--verm-glow); border-color: var(--verm); }
+.order-box.correct .order-answer { border-color: var(--ok); border-style: solid; background: var(--ok-bg); }
+.order-box.wrong .order-answer { border-color: var(--err); border-style: solid; }
+.order-correct { flex-basis: 100%; font-size: 12.5px; color: var(--ink-2); display: flex; gap: 6px;
+  align-items: center; flex-wrap: wrap; }
+
+/* ---- Бичих дасгал ---- */
+.write-box { padding-left: 39px; }
+.wr-targets { display: flex; gap: 14px; flex-wrap: wrap; }
+.wr-char { text-align: center; }
+.wr-pad { width: 120px; height: 120px; background: var(--card); border: 1.5px solid var(--line);
+  border-radius: 12px; }
+.wr-char.done .wr-pad { border-color: var(--ok); background: var(--ok-bg); }
+.wr-lab { font-family: var(--cjk); font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+.wr-status { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; display: inline-flex; gap: 4px; align-items: center; }
+.wr-status svg { width: 12px; height: 12px; }
+.wr-char.done .wr-status { color: var(--ok); }

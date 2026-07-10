@@ -11,6 +11,7 @@ Python 3.14 · FastAPI
 import hashlib
 import hmac
 import os
+import random
 import re
 import secrets
 import time
@@ -202,12 +203,16 @@ def room_detail(room_id: str):
 
 
 def _safe_exercise(e: dict) -> dict:
-    """Дасгалын хариуг нуусан хувилбар — match-ийн pairs-ийг left/right болгоно."""
+    """Дасгалын хариуг нуусан хувилбар — match/order-ийн хариуг үл таамаглагдахаар."""
     item = {k: v for k, v in e.items() if k not in ("answer",)}
     if e["type"] == "match":
         item["left"] = [p["a"] for p in e["pairs"]]
         item["right"] = sorted([p["b"] for p in e["pairs"]])
         item.pop("pairs", None)
+    elif e["type"] == "order":
+        tiles = list(e.get("answer", []))
+        random.shuffle(tiles)
+        item["tiles"] = tiles           # холисон хэсгүүд; зөв дараалал нуугдана
     return item
 
 
@@ -242,11 +247,16 @@ def submit_exercises(payload: ExerciseSubmit):
     perfect = 1 if total and correct == total else 0
     xp = round(lesson["xp"] * (correct / total)) if total else 0
     db.save_progress(payload.lesson_id, lesson["room"], correct, total, xp, perfect)
+    # Хичээл дуусмагц түүний зайлшгүй давталтын картуудыг идэвхжүүлнэ
+    cards = C.srs_cards_for_lesson(lesson)
+    if cards:
+        db.activate_srs_cards([(key, lesson["id"]) for key, *_ in cards])
     if lesson["room"] == "pack":
         # Обамагийн оноосон багцын үр дүнг картад нь автоматаар холбоно
         db.record_pack_result(payload.lesson_id, correct, total)
     return {"score": correct, "total": total, "xp": xp,
-            "perfect": bool(perfect), "results": results}
+            "perfect": bool(perfect), "results": results,
+            "srsAdded": len(cards)}
 
 
 @app.get("/api/exam/{room_id}")
@@ -297,6 +307,36 @@ def packs_catalog():
     return [C.lesson_summary(p) for p in C.TRAINING_PACKS]
 
 
+# ============================= Зайлшгүй давталт (SRS) =====================
+
+class SrsAnswer(BaseModel):
+    card_key: str
+    grade: str          # again | hard | good | easy
+
+
+@app.get("/api/srs/due")
+def srs_due():
+    rows = db.due_srs()
+    cards = C.all_srs_cards()
+    out = []
+    for r in rows:
+        card = cards.get(r["card_key"])
+        if not card:                    # агуулга өөрчлөгдсөн — хуучин картыг алгасна
+            continue
+        out.append({"card_key": r["card_key"], "front": card["front"],
+                    "back": card["back"], "tts": card["tts"],
+                    "lesson_id": card["lesson_id"], "room": card["room"]})
+    return {"cards": out, "counts": db.srs_counts()}
+
+
+@app.post("/api/srs/answer")
+def srs_answer(body: SrsAnswer):
+    res = db.review_srs(body.card_key, body.grade)
+    if res is None:
+        raise HTTPException(404, "Карт олдсонгүй")
+    return {**res, "counts": db.srs_counts()}
+
+
 @app.get("/api/progress")
 def progress():
     prog, exams = db.get_progress()
@@ -313,11 +353,14 @@ def progress():
     exams_passed = sum(1 for e in exams if e["passed"])
     obama_tasks_done = db.done_obama_tasks_count()
 
+    srs = db.srs_counts()
+    read_done = sum(1 for p in prog if p["lesson_id"].startswith("cn-read"))
     stats = {"lessons": lessons_done, "chinese": chinese_done, "law": law_done,
              "intl": intl_done, "bizcn": bizcn_done, "cases": cases_done,
              "cn_adv": cn_adv_done, "packs": packs_done,
              "perfect": perfect, "exams": exams_passed,
-             "obama_tasks": obama_tasks_done}
+             "obama_tasks": obama_tasks_done,
+             "srs": srs["reps"], "reading": read_done}
     earned = [b for b in C.BADGES if _badge_ok(b["rule"], stats)]
 
     level = 1 + total_xp // 300
@@ -330,6 +373,7 @@ def progress():
         "badges": [{**b, "earned": b in earned} for b in C.BADGES],
         "proverb": C.PROVERBS[day % len(C.PROVERBS)],
         "obamaUnread": db.unread_obama_count(),
+        "srs": srs,
         "progress": prog, "exams": exams,
     }
 
@@ -456,6 +500,25 @@ def obama_delete(item_id: int, request: Request):
 
 # ============================== Дүгнэх логик ==============================
 
+_CJK = re.compile(r"[一-鿿]")
+
+
+def _norm_zh(s) -> str:
+    """Зөвхөн ханзыг үлдээж хэвийн болгоно (цэг таслал, зай, пиньиньг хасна)."""
+    return "".join(_CJK.findall(str(s or "")))
+
+
+def _speak_match(given, target) -> bool:
+    """Ярианы таних үр дүнг зорилттой нинжин харьцуулна (уян хатан)."""
+    g, t = _norm_zh(given), _norm_zh(target)
+    if not t:
+        return False
+    if g == t:
+        return True
+    it = iter(g)                       # зорилтот ханз бүр дарааллаараа оролтод байвал зөв
+    return all(ch in it for ch in t)
+
+
 def _grade(item: dict, given) -> bool:
     t = item["type"]
     if t in ("mcq", "listen"):
@@ -467,6 +530,12 @@ def _grade(item: dict, given) -> bool:
             return False
         truth = {p["a"]: p["b"] for p in item["pairs"]}
         return all(given.get(a) == b for a, b in truth.items())
+    if t == "order":
+        return isinstance(given, list) and given == item.get("answer")
+    if t == "speak":
+        return _speak_match(given, item.get("answer", ""))
+    if t == "write":
+        return bool(given)
     return False
 
 
